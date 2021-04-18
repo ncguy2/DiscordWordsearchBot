@@ -48,8 +48,10 @@ namespace WordSearchBot.Core {
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "process", "reply"))
                    .AddTask(ProcessReply);
 
+
+            SocketChannel socketChannel = context.Client.GetChannel(ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get());
             suggestedList = new MessageList(CacheFile("suggestions.list"),
-                                            context.GetChannelByName("suggestions") as SocketTextChannel);
+                                            socketChannel as SocketTextChannel);
 
             context.Client.ReactionAdded += CheckSuggestion;
         }
