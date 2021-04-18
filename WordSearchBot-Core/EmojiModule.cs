@@ -105,7 +105,7 @@ namespace WordSearchBot.Core {
             await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
 
             await msg.ReplyAsync(
-                $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold} distinct votes are required");
+                $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required");
         }
 
         private RequestType DetermineRequestType(IUserMessage msg) {
