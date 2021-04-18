@@ -5,11 +5,12 @@ using System.Linq;
 
 namespace WordSearchBot.Core {
     public class PersistentList<T> : PersistentData<IEnumerable<T>, T> {
-        protected List<T> Data;
+        protected List<T> data;
+
+        protected List<T> Data => data ??= new List<T>();
 
         public PersistentList(string backingFile, DataSerialiser<T> Serialiser) : base(backingFile) {
             this.Serialiser = Serialiser;
-            Data = new List<T>();
         }
 
         protected override IEnumerable<T> GetImpl() {

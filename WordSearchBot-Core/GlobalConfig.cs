@@ -10,7 +10,8 @@ namespace WordSearchBot.Core {
 
         private static string[] CONFIG_PATHS = {
             "~",
-            "."
+            ".",
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
         };
 
         public static IniFile Ini {
@@ -21,8 +22,20 @@ namespace WordSearchBot.Core {
         }
 
         private static string FindConfigFile() {
-            return CONFIG_PATHS.Select(prefix => prefix + "/" + CONFIG_FILE_NAME)
-                               .FirstOrDefault(File.Exists);
+            // return CONFIG_PATHS.Select(prefix => prefix + "/" + CONFIG_FILE_NAME)
+            //                    .FirstOrDefault(File.Exists);
+
+            foreach (string s in CONFIG_PATHS) {
+                string full = s + "/" + CONFIG_FILE_NAME;
+                Console.WriteLine($"Checking if {full} exists.");
+                if (File.Exists(full)) {
+                    Console.WriteLine($" - It does");
+                    return full;
+                }
+                Console.WriteLine($" - It does not");
+            }
+
+            return null;
         }
 
         private static string GetConfigFilePath() {

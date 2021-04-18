@@ -13,10 +13,18 @@ namespace WordSearchBot.Core {
         public bool Contains(IMessage msg) {
             return Data.Select(x => x.Id).Contains(msg.Id);
         }
+
         public bool Contains(ulong msgId) {
             if(IsFileDirty)
                 Read();
-            return Data.Select(x => x.Id).Contains(msgId);
+            foreach (IUserMessage msg in Data) {
+                if (msg != null && msg.Id == msgId)
+                    return true;
+            }
+
+            return false;
+
+            // return Data.Select(x => x.Id).Contains(msgId);
         }
 
         public void Remove(IUserMessage message) {

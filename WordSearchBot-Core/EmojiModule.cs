@@ -49,7 +49,7 @@ namespace WordSearchBot.Core {
                    .AddTask(ProcessReply);
 
             suggestedList = new MessageList(CacheFile("suggestions.list"),
-                                            context.GetChannelByName("bot-testing") as SocketTextChannel);
+                                            context.GetChannelByName("suggestions") as SocketTextChannel);
 
             context.Client.ReactionAdded += CheckSuggestion;
         }
