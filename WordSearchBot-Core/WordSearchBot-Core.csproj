@@ -10,4 +10,9 @@
       <PackageReference Include="Discord.Net" Version="2.3.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Utils\Emoji.json" />
+      <EmbeddedResource Include="Utils\Emoji.json" />
+    </ItemGroup>
+
 </Project>

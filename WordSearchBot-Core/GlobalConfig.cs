@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 
@@ -7,7 +8,7 @@ namespace WordSearchBot.Core {
         private static IniFile file;
         private static string CONFIG_FILE_NAME = "config.ini";
 
-        private static string[] CONFIG_PATHS = new string[] {
+        private static string[] CONFIG_PATHS = {
             "~",
             "."
         };
@@ -47,24 +48,52 @@ namespace WordSearchBot.Core {
             return GetSection(section)[key];
         }
 
-        public static IniValue GetValue(ConfigKey key) {
+        public static IniValue GetValue<T>(ConfigKey<T> key) {
             return GetValue(key.section, key.key);
         }
 
     }
 
-    public struct ConfigKey {
+    public struct ConfigKey<T> {
         public string section;
         public string key;
 
-        public ConfigKey(string section, string key) {
+        private Func<string, T> builder;
+
+        public ConfigKey(string section, string key, Func<string, T> builder) {
             this.section = section;
             this.key = key;
+            this.builder = builder;
+        }
+
+        public readonly T Get() {
+            if (builder == null)
+                throw new Exception();
+
+            return builder(GlobalConfig.GetValue(this).GetString(false, false));
         }
     }
 
     public static class ConfigKeys {
-        public static readonly ConfigKey TOKEN = new ConfigKey("Discord.net", "Token");
+        private static readonly string SECTION_KEY = "Discord.net";
+        public static readonly ConfigKey<string> TOKEN = new(SECTION_KEY, "Token", x => x);
+        public static readonly ConfigKey<ulong> LOG_CHANNEL_ID = new(SECTION_KEY, "LogChannel", ulong.Parse);
+        public static readonly ConfigKey<ulong> TEST_CHANNEL_ID = new(SECTION_KEY, "TestChannel", ulong.Parse);
+        public static readonly ConfigKey<ulong> GUILD_ID = new(SECTION_KEY, "Guild", ulong.Parse);
+
+
+        public static class Cache {
+            private static readonly string SECTION_KEY = "Cache";
+            public static readonly ConfigKey<string> CACHE_DIR = new(SECTION_KEY, "RootDir",  x=> x);
+        }
+
+        public static class Emoji {
+            private static readonly string SECTION_KEY = "Emoji";
+            public static readonly ConfigKey<int> VOTE_THRESHOLD = new(SECTION_KEY, "Threshold", int.Parse);
+
+            public static readonly ConfigKey<ulong> SUGGESTION_CHANNEL_ID =
+                new(SECTION_KEY, "SuggestionChannelId", ulong.Parse);
+        }
     }
 
 }
