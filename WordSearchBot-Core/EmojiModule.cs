@@ -88,7 +88,7 @@ namespace WordSearchBot.Core {
                 }
             }
 
-            if (userCount > VoteThreshold) {
+            if (userCount >= VoteThreshold) {
                 suggestedList.Remove(message);
                 await AddEmoji(message);
             }
@@ -96,7 +96,8 @@ namespace WordSearchBot.Core {
 
         private async Task SuggestEmoji(IUserMessage msg) {
             RequestType requestType = DetermineRequestType(msg);
-            if (requestType == RequestType.None) return;
+            if (requestType == RequestType.None)
+                return;
 
             suggestedList.Add(msg);
             await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
@@ -157,6 +158,10 @@ namespace WordSearchBot.Core {
 
             string url = urlsFromString[0];
             string key = GetKeyFromMessage(msg.Content);
+            if (key == null) {
+                key = StringUtils.GetFileNameFromFilePathOrUrl(url);
+                key = StringUtils.RemoveExtension(key);
+            }
             await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, url);
 
             return true;
@@ -171,6 +176,10 @@ namespace WordSearchBot.Core {
 
             IAttachment attachment = msg.Attachments.ToArray()[0];
             string key = GetKeyFromMessage(msg.Content);
+            if (key == null) {
+                key = StringUtils.GetFileNameFromFilePathOrUrl(attachment.Filename);
+                key = StringUtils.RemoveExtension(key);
+            }
             await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, attachment.Url);
 
             return true;
@@ -179,24 +188,19 @@ namespace WordSearchBot.Core {
         private string GetKeyFromMessage(string message) {
             message = message.Replace("emoji", "");
             message = message.Replace("add", "");
+            message = message.Replace("process", "");
+            message = message.Replace("reply", "");
             message = StringUtils.RemoveCrap(message);
 
             Regex formatRx = new(@"[a-zA-Z0-9_]", RegexOptions.Compiled);
 
             string[] segs = message.Split(" ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            List<string> candidates = new();
+            List<string> candidates = segs.Where(seg => seg.Length <= 32).Where(seg => formatRx.IsMatch(seg)).ToList();
 
-            foreach (string seg in segs) {
-                if (seg.Length > 32)
-                    continue;
-
-                if (!formatRx.IsMatch(seg))
-                    continue;
-                candidates.Add(seg);
+            if (candidates.Count == 0) {
+                Log(Core.LogLevel.ERROR, "Cannot find suitable candidate for emoji name");
+                return null;
             }
-
-            if (candidates.Count == 0)
-                Throw("Cannot find suitable candidate for emoji name");
 
             return candidates[0];
         }
@@ -209,7 +213,7 @@ namespace WordSearchBot.Core {
             Tag<Emote> emoteTag = tag as Tag<Emote>;
             Emote emote = emoteTag.Value;
 
-            string key = GetKeyFromMessage(msg.Content);
+            string key = GetKeyFromMessage(msg.Content) ?? emote.Name;
             await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, emote.Url);
             return true;
         }

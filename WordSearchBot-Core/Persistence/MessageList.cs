@@ -14,6 +14,8 @@ namespace WordSearchBot.Core {
             return Data.Select(x => x.Id).Contains(msg.Id);
         }
         public bool Contains(ulong msgId) {
+            if(IsFileDirty)
+                Read();
             return Data.Select(x => x.Id).Contains(msgId);
         }
 
