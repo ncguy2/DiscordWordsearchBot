@@ -125,10 +125,35 @@ namespace WordSearchBot.Core {
 
             EmbedBuilder eb = new();
 
+            Dictionary<IUser, List<IUserMessage>> groupedMessages = new();
+
             eb.WithTitle("Outstanding suggestions");
-            List<EmbedFieldBuilder> fields = msgs
-                                             .Select(m => new EmbedFieldBuilder().WithName(m.GetJumpUrl())
-                                                         .WithValue($"From {m.Author.Mention}")).ToList();
+
+            foreach (IUserMessage m in msgs) {
+                if(!groupedMessages.ContainsKey(m.Author))
+                    groupedMessages.Add(m.Author, new List<IUserMessage>());
+
+                groupedMessages[m.Author].Add(m);
+            }
+
+            // List<EmbedFieldBuilder> fields = msgs
+            //                                  .Select(m => new EmbedFieldBuilder().WithName(m.GetJumpUrl())
+            //                                              .WithValue($"From {m.Author.Mention}")).ToList();
+
+            List<EmbedFieldBuilder> fields = new();
+            foreach (KeyValuePair<IUser,List<IUserMessage>> p in groupedMessages) {
+                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.Mention}");
+                string v = "";
+                for (int index = 0; index < p.Value.Count; index++) {
+                    IUserMessage uMsg = p.Value[index];
+                    if (index > 0)
+                        v += "\n";
+                    v += uMsg.GetJumpUrl();
+                }
+
+                b.WithValue(v);
+                fields.Add(b);
+            }
 
             eb.WithFields(fields);
 
