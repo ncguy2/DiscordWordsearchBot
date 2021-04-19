@@ -43,6 +43,13 @@ namespace WordSearchBot.Core {
             context.MessageListener
                    .Make()
                    .AddPredicate(Predicates.FilterOnBotMessage())
+                   .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
+                   .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "list"))
+                   .AddTask(ListSuggestions);
+
+            context.MessageListener
+                   .Make()
+                   .AddPredicate(Predicates.FilterOnBotMessage())
                    .AddPredicate(Predicates.FilterOnChannelId(ChannelId))
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "process", "reply"))
@@ -105,7 +112,25 @@ namespace WordSearchBot.Core {
             await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
 
             await msg.ReplyAsync(
-                $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required");
+                $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required",
+                allowedMentions: AllowedMentions.None);
+        }
+
+        private async Task ListSuggestions(IUserMessage msg) {
+            List<IUserMessage> msgs = suggestedList.AsList();
+            if (msgs.Count == 0) {
+                await msg.ReplyAsync("No outstanding suggestions.");
+                return;
+            }
+
+            EmbedBuilder eb = new();
+
+            eb.WithTitle("Outstanding suggestions");
+            List<EmbedFieldBuilder> fields = msgs
+                                             .Select(m => new EmbedFieldBuilder().WithName(m.GetJumpUrl())
+                                                         .WithValue($"From {m.Author.Mention}")).ToList();
+
+            eb.WithFields(fields);
         }
 
         private RequestType DetermineRequestType(IUserMessage msg) {
@@ -142,7 +167,8 @@ namespace WordSearchBot.Core {
             try {
                 bool success = await task(msg);
                 if (success)
-                    await msg.ReplyAsync("Successfully added this as an emoji, enjoy using your new toy.");
+                    await msg.ReplyAsync("Successfully added this as an emoji, enjoy using your new toy.",
+                                         allowedMentions: AllowedMentions.None);
             } catch (ModuleException e) {
                 await msg.ReplyAsync("Something went wrong here, please let someone know.");
                 // ReSharper disable once CA2200
@@ -164,6 +190,7 @@ namespace WordSearchBot.Core {
                 key = StringUtils.GetFileNameFromFilePathOrUrl(url);
                 key = StringUtils.RemoveExtension(key);
             }
+
             await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, url);
 
             return true;
@@ -182,6 +209,7 @@ namespace WordSearchBot.Core {
                 key = StringUtils.GetFileNameFromFilePathOrUrl(attachment.Filename);
                 key = StringUtils.RemoveExtension(key);
             }
+
             await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, attachment.Url);
 
             return true;
