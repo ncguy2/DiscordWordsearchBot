@@ -117,44 +117,44 @@ namespace WordSearchBot.Core {
         }
 
         private async Task ListSuggestions(IUserMessage msg) {
-            List<IUserMessage> msgs = suggestedList.AsList();
-            if (msgs.Count == 0) {
-                await msg.ReplyAsync("No outstanding suggestions.");
-                return;
-            }
+            await MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", msg => {
+                List<IUserMessage> msgs = suggestedList.AsList();
+                if (msgs.Count == 0)
+                    return new LongTaskMessageReturn("No outstanding suggestions");
 
-            EmbedBuilder eb = new();
+                EmbedBuilder eb = new();
 
-            Dictionary<IUserWrapper, List<IUserMessage>> groupedMessages = new();
+                Dictionary<IUserWrapper, List<IUserMessage>> groupedMessages = new();
 
-            eb.WithTitle("Outstanding suggestions");
+                eb.WithTitle("Outstanding suggestions");
 
-            foreach (IUserMessage m in msgs) {
-                IUserWrapper wrapper = new (m.Author);
-                if(!groupedMessages.ContainsKey(wrapper))
-                    groupedMessages.Add(wrapper, new List<IUserMessage>());
+                foreach (IUserMessage m in msgs) {
+                    IUserWrapper wrapper = new(m.Author);
+                    if (!groupedMessages.ContainsKey(wrapper))
+                        groupedMessages.Add(wrapper, new List<IUserMessage>());
 
-                groupedMessages[wrapper].Add(m);
-            }
-
-            List<EmbedFieldBuilder> fields = new();
-            foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
-                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.User.Username}");
-                string v = "";
-                for (int index = 0; index < p.Value.Count; index++) {
-                    IUserMessage uMsg = p.Value[index];
-                    if (index > 0)
-                        v += "\n";
-                    v += uMsg.GetJumpUrl();
+                    groupedMessages[wrapper].Add(m);
                 }
 
-                b.WithValue(v);
-                fields.Add(b);
-            }
+                List<EmbedFieldBuilder> fields = new();
+                foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
+                    EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.User.Username}");
+                    string v = "";
+                    for (int index = 0; index < p.Value.Count; index++) {
+                        IUserMessage uMsg = p.Value[index];
+                        if (index > 0)
+                            v += "\n";
+                        v += uMsg.GetJumpUrl();
+                    }
 
-            eb.WithFields(fields);
+                    b.WithValue(v);
+                    fields.Add(b);
+                }
 
-            await msg.ReplyAsync(embed: eb.Build());
+                eb.WithFields(fields);
+
+                return new LongTaskMessageReturn(eb.Build());
+            });
         }
 
         private RequestType DetermineRequestType(IUserMessage msg) {
