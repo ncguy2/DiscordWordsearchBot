@@ -4,25 +4,29 @@ using Discord;
 
 namespace WordSearchBot.Core.Utils {
     public static class MessageUtils {
-        public static async Task LongTaskMessage(IUserMessage msg, Embed initialMessage,
+        public static void LongTaskMessage(IUserMessage msg, Embed initialMessage,
                                                  Func<IUserMessage, IUserMessage, Task<LongTaskMessageReturn>> callback) {
-            IUserMessage userMessage = await msg.ReplyAsync(embed: initialMessage);
-            LongTaskMessageReturn embed = await callback(msg, userMessage);
-            await userMessage.ModifyAsync(p => {
-                if(embed.embedContent != null)
-                    p.Embed = embed.embedContent;
-                p.Content = embed.strContent ?? "";
+            Task.Run(async () => {
+                IUserMessage userMessage = await msg.ReplyAsync(embed: initialMessage);
+                LongTaskMessageReturn embed = await callback(msg, userMessage);
+                await userMessage.ModifyAsync(p => {
+                    if (embed.embedContent != null)
+                        p.Embed = embed.embedContent;
+                    p.Content = embed.strContent ?? "";
+                });
             });
         }
 
-        public static async Task LongTaskMessage(IUserMessage msg, string initialMessage,
+        public static void LongTaskMessage(IUserMessage msg, string initialMessage,
                                                  Func<IUserMessage, IUserMessage, Task<LongTaskMessageReturn>> callback) {
-            IUserMessage userMessage = await msg.ReplyAsync(initialMessage);
-            LongTaskMessageReturn embed = await callback(msg, userMessage);
-            await userMessage.ModifyAsync(p => {
-                if(embed.embedContent != null)
-                    p.Embed = embed.embedContent;
-                p.Content = embed.strContent ?? "";
+            Task.Run(async () => {
+                IUserMessage userMessage = await msg.ReplyAsync(initialMessage);
+                LongTaskMessageReturn embed = await callback(msg, userMessage);
+                await userMessage.ModifyAsync(p => {
+                    if (embed.embedContent != null)
+                        p.Embed = embed.embedContent;
+                    p.Content = embed.strContent ?? "";
+                });
             });
         }
     }

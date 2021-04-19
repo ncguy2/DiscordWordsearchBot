@@ -116,8 +116,8 @@ namespace WordSearchBot.Core {
                 allowedMentions: AllowedMentions.None);
         }
 
-        private async Task ListSuggestions(IUserMessage msg) {
-            await MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (msg, prog) => {
+        private Task ListSuggestions(IUserMessage msg) {
+            MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (_, prog) => {
                 List<IUserMessage> msgs = suggestedList.AsList();
                 if (msgs.Count == 0)
                     return new LongTaskMessageReturn("No outstanding suggestions");
@@ -164,6 +164,7 @@ namespace WordSearchBot.Core {
 
                 return new LongTaskMessageReturn(eb.Build());
             });
+            return Task.CompletedTask;
         }
 
         private RequestType DetermineRequestType(IUserMessage msg) {
