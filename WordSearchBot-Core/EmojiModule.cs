@@ -139,7 +139,7 @@ namespace WordSearchBot.Core {
 
             List<EmbedFieldBuilder> fields = new();
             foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
-                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.User.Mention}");
+                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.User.Username}");
                 string v = "";
                 for (int index = 0; index < p.Value.Count; index++) {
                     IUserMessage uMsg = p.Value[index];
