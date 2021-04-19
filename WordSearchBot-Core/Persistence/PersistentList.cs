@@ -44,6 +44,8 @@ namespace WordSearchBot.Core {
         }
 
         public List<T> AsList() {
+            if(IsFileDirty)
+                Read();
             return Data;
         }
     }
