@@ -131,6 +131,8 @@ namespace WordSearchBot.Core {
                                                          .WithValue($"From {m.Author.Mention}")).ToList();
 
             eb.WithFields(fields);
+
+            await msg.ReplyAsync(embed: eb.Build());
         }
 
         private RequestType DetermineRequestType(IUserMessage msg) {
