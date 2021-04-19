@@ -125,24 +125,21 @@ namespace WordSearchBot.Core {
 
             EmbedBuilder eb = new();
 
-            Dictionary<IUser, List<IUserMessage>> groupedMessages = new();
+            Dictionary<IUserWrapper, List<IUserMessage>> groupedMessages = new();
 
             eb.WithTitle("Outstanding suggestions");
 
             foreach (IUserMessage m in msgs) {
-                if(!groupedMessages.ContainsKey(m.Author))
-                    groupedMessages.Add(m.Author, new List<IUserMessage>());
+                IUserWrapper wrapper = new (m.Author);
+                if(!groupedMessages.ContainsKey(wrapper))
+                    groupedMessages.Add(wrapper, new List<IUserMessage>());
 
-                groupedMessages[m.Author].Add(m);
+                groupedMessages[wrapper].Add(m);
             }
 
-            // List<EmbedFieldBuilder> fields = msgs
-            //                                  .Select(m => new EmbedFieldBuilder().WithName(m.GetJumpUrl())
-            //                                              .WithValue($"From {m.Author.Mention}")).ToList();
-
             List<EmbedFieldBuilder> fields = new();
-            foreach (KeyValuePair<IUser,List<IUserMessage>> p in groupedMessages) {
-                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.Mention}");
+            foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
+                EmbedFieldBuilder b = new EmbedFieldBuilder().WithName($"From {p.Key.User.Mention}");
                 string v = "";
                 for (int index = 0; index < p.Value.Count; index++) {
                     IUserMessage uMsg = p.Value[index];
@@ -300,4 +297,27 @@ namespace WordSearchBot.Core {
             return lastIndexOf <= 0 ? ".unknown" : file.Substring(lastIndexOf + 1);
         }
     }
+
+    public struct IUserWrapper {
+        public IUser User;
+        public ulong Id;
+
+        public IUserWrapper(IUser user) {
+            User = user;
+            Id = user.Id;
+        }
+
+        public bool Equals(IUserWrapper other) {
+            return Id == other.Id;
+        }
+
+        public override bool Equals(object obj) {
+            return obj is IUserWrapper other && Equals(other);
+        }
+
+        public override int GetHashCode() {
+            return Id.GetHashCode();
+        }
+    }
+
 }
