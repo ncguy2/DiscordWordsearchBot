@@ -5,26 +5,24 @@ using Discord;
 namespace WordSearchBot.Core.Utils {
     public static class MessageUtils {
         public static async Task LongTaskMessage(IUserMessage msg, Embed initialMessage,
-                                                 Func<IUserMessage, LongTaskMessageReturn> callback) {
+                                                 Func<IUserMessage, IUserMessage, Task<LongTaskMessageReturn>> callback) {
             IUserMessage userMessage = await msg.ReplyAsync(embed: initialMessage);
-            LongTaskMessageReturn embed = callback(msg);
+            LongTaskMessageReturn embed = await callback(msg, userMessage);
             await userMessage.ModifyAsync(p => {
-                if (embed.isEmbed)
+                if(embed.embedContent != null)
                     p.Embed = embed.embedContent;
-                else
-                    p.Content = embed.strContent;
+                p.Content = embed.strContent ?? "";
             });
         }
 
         public static async Task LongTaskMessage(IUserMessage msg, string initialMessage,
-                                                 Func<IUserMessage, LongTaskMessageReturn> callback) {
+                                                 Func<IUserMessage, IUserMessage, Task<LongTaskMessageReturn>> callback) {
             IUserMessage userMessage = await msg.ReplyAsync(initialMessage);
-            LongTaskMessageReturn embed = callback(msg);
+            LongTaskMessageReturn embed = await callback(msg, userMessage);
             await userMessage.ModifyAsync(p => {
-                if (embed.isEmbed)
+                if(embed.embedContent != null)
                     p.Embed = embed.embedContent;
-                else
-                    p.Content = embed.strContent;
+                p.Content = embed.strContent ?? "";
             });
         }
     }

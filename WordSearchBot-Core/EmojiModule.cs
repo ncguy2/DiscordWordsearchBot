@@ -117,7 +117,7 @@ namespace WordSearchBot.Core {
         }
 
         private async Task ListSuggestions(IUserMessage msg) {
-            await MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", msg => {
+            await MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (msg, prog) => {
                 List<IUserMessage> msgs = suggestedList.AsList();
                 if (msgs.Count == 0)
                     return new LongTaskMessageReturn("No outstanding suggestions");
@@ -128,6 +128,10 @@ namespace WordSearchBot.Core {
 
                 eb.WithTitle("Outstanding suggestions");
 
+                await prog.ModifyAsync(p => {
+                    p.Content = "Grouping suggestions...";
+                });
+
                 foreach (IUserMessage m in msgs) {
                     IUserWrapper wrapper = new(m.Author);
                     if (!groupedMessages.ContainsKey(wrapper))
@@ -135,6 +139,10 @@ namespace WordSearchBot.Core {
 
                     groupedMessages[wrapper].Add(m);
                 }
+
+                await prog.ModifyAsync(p => {
+                    p.Content = "Building embed...";
+                });
 
                 List<EmbedFieldBuilder> fields = new();
                 foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
@@ -152,6 +160,7 @@ namespace WordSearchBot.Core {
                 }
 
                 eb.WithFields(fields);
+                eb.WithColor(Color.Blue);
 
                 return new LongTaskMessageReturn(eb.Build());
             });
