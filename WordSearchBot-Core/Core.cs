@@ -61,6 +61,12 @@ namespace WordSearchBot.Core {
         }
 
         public async Task Log(LogLevel level, string message, string author = null) {
+
+            string authorTag = "";
+            if (author != null)
+                authorTag = $"[{author}]";
+            Console.WriteLine($"[{Enum.GetName(level)}]{authorTag} {message}");
+
             if (level != LogLevel.FATAL && (loggingLevel & level) == 0)
                 return;
 
@@ -88,9 +94,10 @@ namespace WordSearchBot.Core {
 
         public async Task Initialise() {
             client = new DiscordSocketClient();
-            client.Log += async msg => {
+            client.Log += msg => {
                 Console.WriteLine(msg.ToString());
                 // await Log(MapSeverityToLevel(msg.Severity), msg.Message);
+                return Task.CompletedTask;
             };
 
             await client.LoginAsync(TokenType.Bot, Token);

@@ -20,6 +20,39 @@ namespace WordSearchBot.Core {
             Embed
         }
 
+        [Flags]
+        public enum ValidityStatus {
+            Valid = 0,
+            File_Size_Too_Big = 0b0001,
+            Invalid_Name = 0b0010,
+            Name_Too_Short = Invalid_Name,
+            Name_Not_Alphanumeric = Invalid_Name | 0b0100,
+            Insufficient_Slots = 0b1000,
+            Unknown_Error = 0b1000_0000,
+        }
+
+        public bool Mask(ValidityStatus value, ValidityStatus mask) {
+            return (value & mask) == mask;
+        }
+
+        public ValidityStatus[] ValidityStatusArray = {
+            ValidityStatus.File_Size_Too_Big,
+            ValidityStatus.Invalid_Name,
+            ValidityStatus.Name_Too_Short,
+            ValidityStatus.Name_Not_Alphanumeric,
+            ValidityStatus.Insufficient_Slots
+        };
+
+        public int GetEmoteLimit(IGuild guild) {
+            return guild.PremiumTier switch {
+                PremiumTier.None => 50,
+                PremiumTier.Tier1 => 100,
+                PremiumTier.Tier2 => 150,
+                PremiumTier.Tier3 => 250,
+                _ => 50
+            };
+        }
+
         protected readonly ulong ChannelId = ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get();
         protected readonly int VoteThreshold = ConfigKeys.Emoji.VOTE_THRESHOLD.Get();
 
@@ -42,6 +75,14 @@ namespace WordSearchBot.Core {
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "add"))
                    .AddTask(SuggestEmoji);
+
+            context.MessageListener
+                   .Make()
+                   .AddPredicate(Predicates.FilterOnBotMessage())
+                   .AddPredicate(Predicates.FilterOnChannelId(ConfigKeys.TEST_CHANNEL_ID.Get()))
+                   .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
+                   .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "inspect"))
+                   .AddTask(InspectEmojiCmd);
 
             context.MessageListener
                    .Make()
@@ -165,46 +206,122 @@ namespace WordSearchBot.Core {
                     suggestedList.Remove(message);
                 else {
                     Suggestion suggestion = suggestions.GetFromMessageId(msg.Id);
-                    // suggestion.Status = VoteStatus.Passed;
+                    suggestion.Status = VoteStatus.Passed;
                     suggestions.Update(suggestion);
                 }
                 await AddEmoji(message);
             }
         }
 
+        private async Task InspectEmojiCmd(IUserMessage msg) {
+            ValidityStatus validityStatus = await InspectEmoji(msg);
+
+            string reply = "";
+            reply += "Emoji validity:\n";
+            reply += "Valid: " + ((validityStatus == 0) ? "True" : "False") + "\n";
+            reply += "Invalid: " + ((validityStatus > 0) ? "True" : "False") + "\n";
+            foreach (ValidityStatus s in ValidityStatusArray) {
+                string name = Enum.GetName(s);
+                reply += $"{name}: " + ((validityStatus & s) == s ? "True" : "False") + "\n";
+            }
+
+            await msg.ReplyAsync(reply);
+        }
+
+        private async Task<ValidityStatus> InspectEmoji(IUserMessage msg) {
+            ITextChannel textChannel = msg.Channel as ITextChannel;
+            if (textChannel == null)
+                return ValidityStatus.Unknown_Error;
+            IGuild guild = textChannel.Guild;
+            int emoteLimit = GetEmoteLimit(guild);
+
+            string key = GetKeyFromMessage(msg.Content);
+
+            ValidityStatus flags = 0;
+
+            if (key.Length < 2)
+                flags |= ValidityStatus.Name_Too_Short;
+
+            // TODO add support for checking the name
+            // if(!new Regex("[a-zA-Z0-9_]").IsMatch())
+                // nameFlags |= ValidityStatus.Name_Not_Alphanumeric;
+
+                if (guild.Emotes.Count == emoteLimit)
+                    flags |= ValidityStatus.Insufficient_Slots;
+
+            RequestType type = DetermineRequestType(msg);
+            const int maxFileSize = 262144; // 256KB
+            switch (type) {
+                case RequestType.Attachment:
+                    IAttachment attachment = msg.Attachments.ToArray()[0];
+                    if (attachment.Size > maxFileSize)
+                        flags |= ValidityStatus.File_Size_Too_Big;
+                    break;
+                case RequestType.Embed:
+                    string url = LinkFinder.GetUrlsFromString(msg.Content)[0];
+                    await DownloadTempFile(url, file => {
+                        if (file.Length > maxFileSize)
+                            flags |= ValidityStatus.File_Size_Too_Big;
+                    });
+                    break;
+            }
+
+            return flags;
+        }
 
         private async Task SuggestEmoji(IUserMessage msg) {
             RequestType requestType = DetermineRequestType(msg);
             if (requestType == RequestType.None)
                 return;
 
-            Suggestion suggestion = suggestions.Create(msg);
-            await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
+            ValidityStatus validity = await InspectEmoji(msg);
 
-            IUserMessage reply = await msg.ReplyAsync(
-                $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required",
-                allowedMentions: AllowedMentions.None);
+            if (validity == ValidityStatus.Valid) {
+                Suggestion suggestion = suggestions.Create(msg);
+                await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
 
-            suggestion.InitialReplyId = reply.Id;
-            suggestions.Insert(suggestion);
+                IUserMessage reply = await msg.ReplyAsync(
+                    $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required",
+                    allowedMentions: AllowedMentions.None);
+
+                suggestion.InitialReplyId = reply.Id;
+                suggestions.Insert(suggestion);
+                return;
+            }
+
+            string replyMsg = "Some issues were discovered with this suggestion.";
+
+            if (Mask(validity, ValidityStatus.File_Size_Too_Big))
+                replyMsg += "\n  - The file is too big, it must be below 256KB.";
+            if(Mask(validity, ValidityStatus.Name_Too_Short))
+                replyMsg += "\n  - The name given or inferred is too short, it must be at least 2 characters long";
+            if(Mask(validity, ValidityStatus.Name_Not_Alphanumeric))
+                replyMsg += "\n  - The name given or inferred has invalid characters, it can only contain alphanumeric characters and underscores";
+            if(Mask(validity, ValidityStatus.Insufficient_Slots))
+                replyMsg += "\n  - There aren't enough slots left on the server, please ask an admin to look into clearing some out.";
+            if(Mask(validity, ValidityStatus.Unknown_Error))
+                replyMsg += "\n  - Unknown error, no idea what broke here ¯\\_(ツ)_/¯";
+
+            await msg.ReplyAsync(replyMsg);
+
         }
 
         private Task ListSuggestions(IUserMessage msg) {
-            MessageUtils.LongTaskMessage(msg, "[NEW] Fetching outstanding suggestions", async (_, prog) => {
+            MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (_, prog) => {
                 List<IUserMessage> msgs = suggestedList.AsList();
                 List<Suggestion> sugs = suggestions.Get(s => s.InternalStatus == (byte) VoteStatus.Pending).ToList();
 
                 if (msgs.Count == 0 && sugs.Count == 0)
-                    return new LongTaskMessageReturn("[NEW] No outstanding suggestions");
+                    return new LongTaskMessageReturn("No outstanding suggestions");
 
                 EmbedBuilder eb = new();
 
                 Dictionary<IUserWrapper, List<IUserMessage>> groupedMessages = new();
 
-                eb.WithTitle("[NEW] Outstanding suggestions");
+                eb.WithTitle("Outstanding suggestions");
 
                 await prog.ModifyAsync(p => {
-                    p.Content = "[NEW] Grouping suggestions...";
+                    p.Content = "Grouping suggestions...";
                 });
 
                 foreach (IUserMessage m in msgs) {
@@ -226,7 +343,7 @@ namespace WordSearchBot.Core {
                 }
 
                 await prog.ModifyAsync(p => {
-                    p.Content = "[NEW] Building embed...";
+                    p.Content = "Building embed...";
                 });
 
                 List<EmbedFieldBuilder> fields = new();
@@ -364,17 +481,36 @@ namespace WordSearchBot.Core {
             Emote emote = emoteTag.Value;
 
             string key = GetKeyFromMessage(msg.Content) ?? emote.Name;
-            await AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, emote.Url);
+            AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, emote.Url);
             return true;
         }
 
         private async Task AddEmojiFromUrl(IGuild guild, string emoteKey, string url) {
+            string filePath = await DownloadFile(url, emoteKey);
+            await AddEmojiFromFile(guild, emoteKey, filePath);
+        }
+
+        private async Task<string> DownloadFile(string url, string filename) {
+            await Log(Core.LogLevel.DEBUG, $"Downloading file from \"{url}\" to \"{filename}\"");
             using WebClient client = new();
             Directory.CreateDirectory(".downloads");
-            string filePath = $".downloads/{emoteKey}.{GetFileExt(url)}";
+            string filePath = $".downloads/{filename}.{GetFileExt(url)}";
             client.DownloadFile(url, filePath);
 
-            await AddEmojiFromFile(guild, emoteKey, filePath);
+            return filePath;
+        }
+
+        private async Task DownloadTempFile(string url, Action<FileInfo> callback) {
+            string downloadFile = await DownloadFile(url, StringUtils.RandomString(8));
+            callback(new FileInfo(downloadFile));
+            File.Delete(downloadFile);
+        }
+
+        private async Task<T> DownloadTempFile<T>(string url, Func<FileInfo, T> callback) {
+            string downloadFile = await DownloadFile(url, StringUtils.RandomString(8));
+            T val = callback(new FileInfo(downloadFile));
+            File.Delete(downloadFile);
+            return val;
         }
 
         private async Task AddEmojiFromFile(IGuild guild, string key, string file) {
