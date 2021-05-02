@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using LiteDB;
+using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core {
     public class Core {

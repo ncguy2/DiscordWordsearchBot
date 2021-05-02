@@ -9,13 +9,20 @@ using Discord;
 using Discord.Commands;
 using Discord.Rest;
 using Discord.WebSocket;
+using LiteDB;
+using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core {
     class Program {
-        static void Main(string[] args) {
-            new Program().MainAsync().GetAwaiter().GetResult();
+        public static void PrepMappers() {
+            BsonMapper.Global.IncludeFields = true;
+            Suggestion.Register(BsonMapper.Global);
         }
 
+        static void Main(string[] args) {
+            PrepMappers();
+            new Program().MainAsync().GetAwaiter().GetResult();
+        }
 
         public async Task MainAsync() {
             Core core = new();

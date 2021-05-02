@@ -34,12 +34,12 @@ namespace WordSearchBot.Core {
         }
 
         protected override void Read() {
-            SetImpl(File.ReadLines(BackingFile).Select(Serialiser.Deserialize));
+            SetImpl(File.ReadLines(BackingFile).Select(Serialiser.Deserialize).Where(x => x != null));
             IsFileDirty = false;
         }
 
         protected override void Write() {
-            List<string> lines = GetImpl().Select(Serialiser.Serialize).ToList();
+            List<string> lines = GetImpl().Where(x => x != null).Select(Serialiser.Serialize).ToList();
             File.WriteAllLines(BackingFile, lines);
         }
 

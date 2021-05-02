@@ -98,6 +98,7 @@ namespace WordSearchBot.Core {
         public static class Cache {
             private static readonly string SECTION_KEY = "Cache";
             public static readonly ConfigKey<string> CACHE_DIR = new(SECTION_KEY, "RootDir",  x=> x);
+            public static readonly ConfigKey<string> DB_FILE = new(SECTION_KEY, "Database",  x=> x);
         }
 
         public static class Emoji {

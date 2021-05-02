@@ -21,7 +21,15 @@ namespace WordSearchBot.Core.Utils {
                                                  Func<IUserMessage, IUserMessage, Task<LongTaskMessageReturn>> callback) {
             Task.Run(async () => {
                 IUserMessage userMessage = await msg.ReplyAsync(initialMessage);
-                LongTaskMessageReturn embed = await callback(msg, userMessage);
+                LongTaskMessageReturn embed;
+
+                try {
+                    embed = await callback(msg, userMessage);
+                } catch (Exception e) {
+                    embed = new LongTaskMessageReturn($"[ERROR] {e.Message}");
+                    Console.WriteLine(e.ToString());
+                }
+
                 await userMessage.ModifyAsync(p => {
                     if (embed.embedContent != null)
                         p.Embed = embed.embedContent;

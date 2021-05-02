@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using WordSearchBot.Core.Data.Facade;
+using WordSearchBot.Core.Model;
 using WordSearchBot.Core.Utils;
 
 namespace WordSearchBot.Core {
@@ -22,6 +24,7 @@ namespace WordSearchBot.Core {
         protected readonly int VoteThreshold = ConfigKeys.Emoji.VOTE_THRESHOLD.Get();
 
         protected MessageList suggestedList;
+        protected Suggestions suggestions;
 
         public override string DisplayName() {
             return "Emoji";
@@ -55,12 +58,68 @@ namespace WordSearchBot.Core {
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "process", "reply"))
                    .AddTask(ProcessReply);
 
+            context.MessageListener
+                   .Make()
+                   .AddPredicate(Predicates.FilterOnBotMessage())
+                   .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
+                   .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "migrate"))
+                   .AddTask(MigrateItems);
 
             SocketChannel socketChannel = context.Client.GetChannel(ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get());
             suggestedList = new MessageList(CacheFile("suggestions.list"),
                                             socketChannel as SocketTextChannel);
+            suggestions = new Suggestions();
 
             context.Client.ReactionAdded += CheckSuggestion;
+        }
+
+        private async Task MigrateItems(IUserMessage msg) {
+            if (msg.Channel.Id != Core.BOT_TESTING_CHANNEL_ID)
+                return;
+
+            List<IUserMessage> userMessages = suggestedList.AsList();
+            List<IUserMessage> toRemove = new();
+
+            MessageUtils.LongTaskMessage(msg, $"Messages to migrate: {userMessages.Count}", async (_, prog) => {
+                foreach (IUserMessage m in userMessages) {
+                    await prog.ModifyAsync(p => {
+                        p.Content = "Migrating message: " + m.Id;
+                    });
+                    if (await MigrateItem(m))
+                        toRemove.Add(m);
+                }
+
+                foreach (IUserMessage userMessage in toRemove)
+                    suggestedList.Remove(userMessage);
+
+                LongTaskMessageReturn longTaskMessageReturn = new() {
+                    strContent = $"Migration completed. Remaining legacy suggestions: {suggestedList.AsList().Count}"
+                };
+                return longTaskMessageReturn;
+            });
+        }
+
+        private async Task<bool> MigrateItem(IUserMessage msg) {
+            IAsyncEnumerable<IReadOnlyCollection<IMessage>> msgs = msg.Channel.GetMessagesAsync(msg, Direction.After, 4);
+
+            async Task<IMessage> GetReply(IAsyncEnumerable<IReadOnlyCollection<IMessage>> asyncEnumerable) {
+                await foreach (IReadOnlyCollection<IMessage> m in asyncEnumerable) {
+                    foreach (IMessage message in m) {
+                        if (message.Author.Id != AssignedCore.GetClient().CurrentUser.Id) continue;
+                        return message;
+                    }
+                }
+
+                return null;
+            }
+
+            IMessage reply = await GetReply(msgs);
+
+            Suggestion suggestion = suggestions.Create(msg);
+            suggestion.InitialReplyId = reply.Id;
+            suggestions.Update(suggestion);
+
+            return true;
         }
 
         private async Task ProcessReply(IUserMessage arg) {
@@ -77,8 +136,12 @@ namespace WordSearchBot.Core {
             if (channel.Id != ChannelId)
                 return;
 
-            if (!suggestedList.Contains(msg.Id))
+            bool isLegacy = false;
+
+            if (!suggestedList.Contains(msg.Id) && suggestions.Contains(msg.Id))
                 return;
+
+            isLegacy = suggestedList.Contains(msg.Id);
 
             IUserMessage message = await msg.GetOrDownloadAsync();
 
@@ -98,41 +161,55 @@ namespace WordSearchBot.Core {
             }
 
             if (userCount >= VoteThreshold) {
-                suggestedList.Remove(message);
+                if(isLegacy)
+                    suggestedList.Remove(message);
+                else {
+                    Suggestion suggestion = suggestions.GetFromMessageId(msg.Id);
+                    // suggestion.Status = VoteStatus.Passed;
+                    suggestions.Update(suggestion);
+                }
                 await AddEmoji(message);
             }
         }
+
 
         private async Task SuggestEmoji(IUserMessage msg) {
             RequestType requestType = DetermineRequestType(msg);
             if (requestType == RequestType.None)
                 return;
 
-            suggestedList.Add(msg);
+            Suggestion suggestion = suggestions.Create(msg);
             await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
 
-            await msg.ReplyAsync(
+            IUserMessage reply = await msg.ReplyAsync(
                 $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required",
                 allowedMentions: AllowedMentions.None);
+
+            suggestion.InitialReplyId = reply.Id;
+            suggestions.Insert(suggestion);
         }
 
         private Task ListSuggestions(IUserMessage msg) {
-            MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (_, prog) => {
+            MessageUtils.LongTaskMessage(msg, "[NEW] Fetching outstanding suggestions", async (_, prog) => {
                 List<IUserMessage> msgs = suggestedList.AsList();
-                if (msgs.Count == 0)
-                    return new LongTaskMessageReturn("No outstanding suggestions");
+                List<Suggestion> sugs = suggestions.Get(s => s.InternalStatus == (byte) VoteStatus.Pending).ToList();
+
+                if (msgs.Count == 0 && sugs.Count == 0)
+                    return new LongTaskMessageReturn("[NEW] No outstanding suggestions");
 
                 EmbedBuilder eb = new();
 
                 Dictionary<IUserWrapper, List<IUserMessage>> groupedMessages = new();
 
-                eb.WithTitle("Outstanding suggestions");
+                eb.WithTitle("[NEW] Outstanding suggestions");
 
                 await prog.ModifyAsync(p => {
-                    p.Content = "Grouping suggestions...";
+                    p.Content = "[NEW] Grouping suggestions...";
                 });
 
                 foreach (IUserMessage m in msgs) {
+                    if (m == null)
+                        continue;
                     IUserWrapper wrapper = new(m.Author);
                     if (!groupedMessages.ContainsKey(wrapper))
                         groupedMessages.Add(wrapper, new List<IUserMessage>());
@@ -140,8 +217,16 @@ namespace WordSearchBot.Core {
                     groupedMessages[wrapper].Add(m);
                 }
 
+                foreach (Suggestion sug in sugs) {
+                    IUserWrapper wrapper = new(sug.GetMessage(msg.Channel).Author);
+                    if (!groupedMessages.ContainsKey(wrapper))
+                        groupedMessages.Add(wrapper, new List<IUserMessage>());
+
+                    groupedMessages[wrapper].Add(sug.GetMessage(msg.Channel));
+                }
+
                 await prog.ModifyAsync(p => {
-                    p.Content = "Building embed...";
+                    p.Content = "[NEW] Building embed...";
                 });
 
                 List<EmbedFieldBuilder> fields = new();
@@ -253,6 +338,7 @@ namespace WordSearchBot.Core {
             message = message.Replace("emoji", "");
             message = message.Replace("add", "");
             message = message.Replace("process", "");
+            message = message.Replace("migrate", "");
             message = message.Replace("reply", "");
             message = StringUtils.RemoveCrap(message);
 
@@ -285,7 +371,7 @@ namespace WordSearchBot.Core {
         private async Task AddEmojiFromUrl(IGuild guild, string emoteKey, string url) {
             using WebClient client = new();
             Directory.CreateDirectory(".downloads");
-            string filePath = $".downloads\\{emoteKey}.{GetFileExt(url)}";
+            string filePath = $".downloads/{emoteKey}.{GetFileExt(url)}";
             client.DownloadFile(url, filePath);
 
             await AddEmojiFromFile(guild, emoteKey, filePath);
