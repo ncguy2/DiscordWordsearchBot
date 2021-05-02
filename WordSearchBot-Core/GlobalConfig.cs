@@ -108,6 +108,11 @@ namespace WordSearchBot.Core {
             public static readonly ConfigKey<ulong> SUGGESTION_CHANNEL_ID =
                 new(SECTION_KEY, "SuggestionChannelId", ulong.Parse);
         }
+
+        public static class Web {
+            private static readonly string SECTION_KEY = "Web";
+            public static readonly ConfigKey<int> PORT = new(SECTION_KEY, "Port", int.Parse);
+        }
     }
 
 }

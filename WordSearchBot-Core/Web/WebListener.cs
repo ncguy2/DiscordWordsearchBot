@@ -21,9 +21,10 @@ namespace WordSearchBot.Core.Web {
         }
 
         public void Start() {
+            int port = ConfigKeys.Web.PORT.Get();
             httpListener = new HttpListener();
-            // httpListener.Prefixes.Add("http://nick-aws.ddns.net/");
-            httpListener.Prefixes.Add("http://127.0.0.1:8080/");
+            httpListener.Prefixes.Add($"http://nick-aws.ddns.net:{port}/");
+            httpListener.Prefixes.Add($"http://127.0.0.1:{port}/");
 
             Active = true;
             thread = new Thread(Loop) {
