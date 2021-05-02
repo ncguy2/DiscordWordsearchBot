@@ -29,7 +29,8 @@ namespace WordSearchBot.Core {
             Name_Too_Short = Invalid_Name,
             Name_Not_Alphanumeric = Invalid_Name | 0b0100,
             Insufficient_Slots = 0b1000,
-            Unknown_Error = 0b1000_0000,
+            Unknown_Error = 0b0100_0000,
+            Silent_Error = 0b1000_0000,
         }
 
         public bool Mask(ValidityStatus value, ValidityStatus mask) {
@@ -80,7 +81,6 @@ namespace WordSearchBot.Core {
             context.MessageListener
                    .Make()
                    .AddPredicate(Predicates.FilterOnBotMessage())
-                   .AddPredicate(Predicates.FilterOnChannelId(ChannelId))
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "inspect"))
                    .AddTask(InspectEmojiCmd);
@@ -222,6 +222,9 @@ namespace WordSearchBot.Core {
 
             string reply = "";
 
+            if (Mask(validityStatus, ValidityStatus.Silent_Error))
+                return;
+
             if (validityStatus == ValidityStatus.Valid) {
                 reply = "All looks good";
             } else {
@@ -265,8 +268,8 @@ namespace WordSearchBot.Core {
             // if(!new Regex("[a-zA-Z0-9_]").IsMatch())
                 // nameFlags |= ValidityStatus.Name_Not_Alphanumeric;
 
-                if (guild.Emotes.Count == emoteLimit)
-                    flags |= ValidityStatus.Insufficient_Slots;
+            if (guild.Emotes.Count == emoteLimit)
+                flags |= ValidityStatus.Insufficient_Slots;
 
             const int maxFileSize = 262144; // 256KB
             switch (type) {
@@ -277,10 +280,17 @@ namespace WordSearchBot.Core {
                     break;
                 case RequestType.Embed:
                     string url = LinkFinder.GetUrlsFromString(msg.Content)[0];
-                    await DownloadTempFile(url, file => {
-                        // if (file.Length > maxFileSize)
-                            // flags |= ValidityStatus.File_Size_Too_Big;
-                    });
+
+                    try {
+                        await DownloadTempFile(url, file => {
+                            if (file.Length > maxFileSize)
+                                flags |= ValidityStatus.File_Size_Too_Big;
+                        });
+                    } catch (WebException we) {
+                        msg.ReplyAsync(we.Message);
+                        return ValidityStatus.Silent_Error;
+                    }
+
                     break;
             }
 
@@ -439,6 +449,8 @@ namespace WordSearchBot.Core {
                 await msg.ReplyAsync("Something went wrong here, please let someone know.");
                 // ReSharper disable once CA2200
                 throw e;
+            } catch (Exception e) {
+                await msg.ReplyAsync(e.Message);
             }
         }
 
