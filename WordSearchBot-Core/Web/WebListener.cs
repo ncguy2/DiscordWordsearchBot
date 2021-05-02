@@ -24,7 +24,9 @@ namespace WordSearchBot.Core.Web {
             int port = ConfigKeys.Web.PORT.Get();
             httpListener = new HttpListener();
             httpListener.Prefixes.Add($"http://nick-aws.ddns.net:{port}/");
+            httpListener.Prefixes.Add($"http://ec2-18-133-161-163.eu-west-2.compute.amazonaws.com:{port}/");
             httpListener.Prefixes.Add($"http://127.0.0.1:{port}/");
+            httpListener.Prefixes.Add($"http://*:{port}/");
 
             Active = true;
             thread = new Thread(Loop) {
