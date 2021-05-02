@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using WordSearchBot.Core.Data.Facade;
 using WordSearchBot.Core.Model;
@@ -71,7 +72,7 @@ namespace WordSearchBot.Core {
             context.MessageListener
                    .Make()
                    .AddPredicate(Predicates.FilterOnBotMessage())
-                   .AddPredicate(Predicates.FilterOnChannelId(ChannelId))
+                   .AddPredicate(Predicates.FilterOnChannelId(ConfigKeys.TEST_CHANNEL_ID.Get()))
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "add"))
                    .AddTask(SuggestEmoji);
@@ -111,7 +112,10 @@ namespace WordSearchBot.Core {
                                             socketChannel as SocketTextChannel);
             suggestions = new Suggestions();
 
-            context.Client.ReactionAdded += CheckSuggestion;
+            context.Client.ReactionAdded += (msg, channel, reaction) => {
+                Task.Run(() => CheckSuggestion(msg, channel, reaction));
+                return Task.CompletedTask;
+            };
         }
 
         private async Task MigrateItems(IUserMessage msg) {
@@ -179,7 +183,7 @@ namespace WordSearchBot.Core {
 
             bool isLegacy = false;
 
-            if (!suggestedList.Contains(msg.Id) && suggestions.Contains(msg.Id))
+            if (!suggestedList.Contains(msg.Id) && !suggestions.ContainsAndIs(msg.Id, x => x.Status == VoteStatus.Pending))
                 return;
 
             isLegacy = suggestedList.Contains(msg.Id);
@@ -217,13 +221,21 @@ namespace WordSearchBot.Core {
             ValidityStatus validityStatus = await InspectEmoji(msg);
 
             string reply = "";
-            reply += "Emoji validity:\n";
-            reply += "Valid: " + ((validityStatus == 0) ? "True" : "False") + "\n";
-            reply += "Invalid: " + ((validityStatus > 0) ? "True" : "False") + "\n";
-            foreach (ValidityStatus s in ValidityStatusArray) {
-                string name = Enum.GetName(s);
-                reply += $"{name}: " + ((validityStatus & s) == s ? "True" : "False") + "\n";
+
+            if (validityStatus == ValidityStatus.Valid) {
+                reply = "All looks good";
+            } else {
+                reply = "Some errors were found";
+                reply += GetErrorMessages(validityStatus);
             }
+
+                // reply += "Emoji validity:\n";
+            // reply += "Valid: " + ((validityStatus == 0) ? "True" : "False") + "\n";
+            // reply += "Invalid: " + ((validityStatus > 0) ? "True" : "False") + "\n";
+            // foreach (ValidityStatus s in ValidityStatusArray) {
+            //     string name = Enum.GetName(s);
+            //     reply += $"{name}: " + ((validityStatus & s) == s ? "True" : "False") + "\n";
+            // }
 
             await msg.ReplyAsync(reply);
         }
@@ -234,6 +246,13 @@ namespace WordSearchBot.Core {
                 return ValidityStatus.Unknown_Error;
             IGuild guild = textChannel.Guild;
             int emoteLimit = GetEmoteLimit(guild);
+
+            RequestType type = DetermineRequestType(msg);
+
+            if (type == RequestType.None && msg.ReferencedMessage != null) {
+                msg = msg.ReferencedMessage;
+                type = DetermineRequestType(msg);
+            }
 
             string key = GetKeyFromMessage(msg.Content);
 
@@ -249,7 +268,6 @@ namespace WordSearchBot.Core {
                 if (guild.Emotes.Count == emoteLimit)
                     flags |= ValidityStatus.Insufficient_Slots;
 
-            RequestType type = DetermineRequestType(msg);
             const int maxFileSize = 262144; // 256KB
             switch (type) {
                 case RequestType.Attachment:
@@ -260,13 +278,30 @@ namespace WordSearchBot.Core {
                 case RequestType.Embed:
                     string url = LinkFinder.GetUrlsFromString(msg.Content)[0];
                     await DownloadTempFile(url, file => {
-                        if (file.Length > maxFileSize)
-                            flags |= ValidityStatus.File_Size_Too_Big;
+                        // if (file.Length > maxFileSize)
+                            // flags |= ValidityStatus.File_Size_Too_Big;
                     });
                     break;
             }
 
             return flags;
+        }
+
+        private string GetErrorMessages(ValidityStatus validity) {
+            string replyMsg = "";
+
+            if (Mask(validity, ValidityStatus.File_Size_Too_Big))
+                replyMsg += "\n  - The file is too big, it must be below 256KB.";
+            if(Mask(validity, ValidityStatus.Name_Too_Short))
+                replyMsg += "\n  - The name given or inferred is too short, it must be at least 2 characters long";
+            if(Mask(validity, ValidityStatus.Name_Not_Alphanumeric))
+                replyMsg += "\n  - The name given or inferred has invalid characters, it can only contain alphanumeric characters and underscores";
+            if(Mask(validity, ValidityStatus.Insufficient_Slots))
+                replyMsg += "\n  - There aren't enough slots left on the server, please ask an admin to look into clearing some out.";
+            if(Mask(validity, ValidityStatus.Unknown_Error))
+                replyMsg += "\n  - Unknown error, no idea what broke here ¯\\_(ツ)_/¯";
+
+            return replyMsg;
         }
 
         private async Task SuggestEmoji(IUserMessage msg) {
@@ -291,16 +326,7 @@ namespace WordSearchBot.Core {
 
             string replyMsg = "Some issues were discovered with this suggestion.";
 
-            if (Mask(validity, ValidityStatus.File_Size_Too_Big))
-                replyMsg += "\n  - The file is too big, it must be below 256KB.";
-            if(Mask(validity, ValidityStatus.Name_Too_Short))
-                replyMsg += "\n  - The name given or inferred is too short, it must be at least 2 characters long";
-            if(Mask(validity, ValidityStatus.Name_Not_Alphanumeric))
-                replyMsg += "\n  - The name given or inferred has invalid characters, it can only contain alphanumeric characters and underscores";
-            if(Mask(validity, ValidityStatus.Insufficient_Slots))
-                replyMsg += "\n  - There aren't enough slots left on the server, please ask an admin to look into clearing some out.";
-            if(Mask(validity, ValidityStatus.Unknown_Error))
-                replyMsg += "\n  - Unknown error, no idea what broke here ¯\\_(ツ)_/¯";
+            replyMsg += GetErrorMessages(validity);
 
             await msg.ReplyAsync(replyMsg);
 
@@ -405,6 +431,10 @@ namespace WordSearchBot.Core {
                 if (success)
                     await msg.ReplyAsync("Successfully added this as an emoji, enjoy using your new toy.",
                                          allowedMentions: AllowedMentions.None);
+            } catch (HttpException he) {
+                string reply = he.Message + "\n - ";
+                reply += he.Reason ?? "No reason provided";
+                await msg.ReplyAsync(reply);
             } catch (ModuleException e) {
                 await msg.ReplyAsync("Something went wrong here, please let someone know.");
                 // ReSharper disable once CA2200
@@ -469,7 +499,13 @@ namespace WordSearchBot.Core {
                 return null;
             }
 
-            return candidates[0];
+            string candidate = candidates[0];
+            if (candidate.StartsWith("http")) {
+                string[] split = candidate.Split('/');
+                candidate = split[^1];
+                candidate = StringUtils.RemoveExtension(candidate);
+            }
+            return candidate;
         }
 
         private async Task<bool> AddEmojiFromExistingEmoji(IUserMessage msg) {
@@ -518,10 +554,9 @@ namespace WordSearchBot.Core {
             Image img = new(fullPath);
 
             await Log(Core.LogLevel.DEBUG, $"Adding emoji {key}. [File: {fullPath}]");
-            Task<GuildEmote> task = guild.CreateEmoteAsync(key, img);
-            GuildEmote emoteAsync = task.GetAwaiter().GetResult();
+            GuildEmote task = await guild.CreateEmoteAsync(key, img);
 
-            if (emoteAsync == null) await Log(Core.LogLevel.ERROR, $"Failed to add emoji with key {key}");
+            if (task == null) await Log(Core.LogLevel.ERROR, $"Failed to add emoji with key {key}");
         }
 
         private static string GetFileExt(string file) {

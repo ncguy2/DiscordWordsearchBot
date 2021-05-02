@@ -1,3 +1,4 @@
+using System;
 using System.Linq.Expressions;
 using Discord;
 using LiteDB;
@@ -12,6 +13,11 @@ namespace WordSearchBot.Core.Data.Facade {
 
         public bool Contains(ulong msgId) {
             return GetFromMessageId(msgId) != null;
+        }
+
+        public bool ContainsAndIs(ulong msgId, Predicate<Suggestion> predicate) {
+            Suggestion msg = GetFromMessageId(msgId);
+            return msg != null && predicate(msg);
         }
 
         public Suggestion Create(IUserMessage msg) {
