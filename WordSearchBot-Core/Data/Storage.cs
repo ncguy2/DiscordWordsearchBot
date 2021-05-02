@@ -15,10 +15,17 @@ namespace WordSearchBot.Core.Data {
             if (dbChecked)
                 return;
 
+            Console.WriteLine("DB File: " + new FileInfo(DB_FILE).FullName);
+
             if (DB_FILE.Length == 0)
                 throw new Exception($"Database file: \"{DB_FILE}\" is not specified");
 
             dbChecked = true;
+        }
+
+        public static T GetById<T>(string id) {
+            ObjectId objId = new ObjectId(id);
+            return GetById<T>(objId);
         }
 
         public static T GetById<T>(BsonValue id) {

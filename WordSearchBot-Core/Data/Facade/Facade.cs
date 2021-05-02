@@ -17,8 +17,16 @@ namespace WordSearchBot.Core.Data.Facade {
             Storage.TryInsertOrUpdate(obj);
         }
 
+        public IEnumerable<T> Get() {
+            return Storage.GetAll<T>();
+        }
+
         public IEnumerable<T> Get(Expression<Func<T, bool>> predicate) {
             return Storage.Get<T>(predicate);
+        }
+
+        public T Get(string id) {
+            return Storage.GetById<T>(id);
         }
 
     }

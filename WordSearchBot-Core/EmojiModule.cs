@@ -250,14 +250,14 @@ namespace WordSearchBot.Core {
             IGuild guild = textChannel.Guild;
             int emoteLimit = GetEmoteLimit(guild);
 
-            RequestType type = DetermineRequestType(msg);
+            RequestType type = DetermineRequestType(msg, Log);
 
             if (type == RequestType.None && msg.ReferencedMessage != null) {
                 msg = msg.ReferencedMessage;
-                type = DetermineRequestType(msg);
+                type = DetermineRequestType(msg, Log);
             }
 
-            string key = GetKeyFromMessage(msg.Content);
+            string key = GetKeyFromMessage(msg.Content, Log);
 
             ValidityStatus flags = 0;
 
@@ -315,7 +315,7 @@ namespace WordSearchBot.Core {
         }
 
         private async Task SuggestEmoji(IUserMessage msg) {
-            RequestType requestType = DetermineRequestType(msg);
+            RequestType requestType = DetermineRequestType(msg, Log);
             if (requestType == RequestType.None)
                 return;
 
@@ -405,8 +405,23 @@ namespace WordSearchBot.Core {
             return Task.CompletedTask;
         }
 
-        private RequestType DetermineRequestType(IUserMessage msg) {
-            GetKeyFromMessage(msg.Content);
+        public static RequestType DetermineRequestType(IUserMessage msg) {
+            return DetermineRequestType(msg, (level, s) => {
+                Console.WriteLine($"[{level}] {s}");
+            });
+        }
+
+        public static RequestType DetermineRequestType(IUserMessage msg, Action<Core.LogLevel, string> Log) {
+            Func<Core.LogLevel, string, Task> l = (level, s) => {
+                Log(level, s);
+                return Task.CompletedTask;
+            };
+
+            return DetermineRequestType(msg, l);
+        }
+
+        public static RequestType DetermineRequestType(IUserMessage msg, Func<Core.LogLevel, string, Task> Log) {
+            GetKeyFromMessage(msg.Content, Log);
 
             if (msg.Attachments.Count > 0)
                 return RequestType.Attachment;
@@ -433,7 +448,7 @@ namespace WordSearchBot.Core {
         }
 
         private async Task AddEmoji(IUserMessage msg) {
-            RequestType type = DetermineRequestType(msg);
+            RequestType type = DetermineRequestType(msg, Log);
             Func<IUserMessage, Task<bool>> task = GetTaskFromType(type);
 
             try {
@@ -463,7 +478,7 @@ namespace WordSearchBot.Core {
                 Throw("Attempted to add emoji from embed, but couldn't find a link in the given message");
 
             string url = urlsFromString[0];
-            string key = GetKeyFromMessage(msg.Content);
+            string key = GetKeyFromMessage(msg.Content, Log);
             if (key == null) {
                 key = StringUtils.GetFileNameFromFilePathOrUrl(url);
                 key = StringUtils.RemoveExtension(key);
@@ -482,7 +497,7 @@ namespace WordSearchBot.Core {
                 Throw("Attempted to add emoji from attachment, but couldn't find an attachment in the given message");
 
             IAttachment attachment = msg.Attachments.ToArray()[0];
-            string key = GetKeyFromMessage(msg.Content);
+            string key = GetKeyFromMessage(msg.Content, Log);
             if (key == null) {
                 key = StringUtils.GetFileNameFromFilePathOrUrl(attachment.Filename);
                 key = StringUtils.RemoveExtension(key);
@@ -493,7 +508,16 @@ namespace WordSearchBot.Core {
             return true;
         }
 
-        private string GetKeyFromMessage(string message) {
+        public static string GetKeyFromMessage(string message, Action<Core.LogLevel, string> Log) {
+            Func<Core.LogLevel, string, Task> l = (level, s) => {
+                Log(level, s);
+                return Task.CompletedTask;
+            };
+
+            return GetKeyFromMessage(message, l);
+        }
+
+        public static string GetKeyFromMessage(string message, Func<Core.LogLevel, string, Task> Log) {
             message = message.Replace("emoji", "");
             message = message.Replace("add", "");
             message = message.Replace("process", "");
@@ -522,7 +546,7 @@ namespace WordSearchBot.Core {
             Tag<Emote> emoteTag = tag as Tag<Emote>;
             Emote emote = emoteTag.Value;
 
-            string key = GetKeyFromMessage(msg.Content) ?? emote.Name;
+            string key = GetKeyFromMessage(msg.Content, Log) ?? emote.Name;
             AddEmojiFromUrl(((SocketGuildChannel) msg.Channel).Guild, key, emote.Url);
             return true;
         }

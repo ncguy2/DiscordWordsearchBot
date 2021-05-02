@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
@@ -18,6 +19,7 @@ namespace WordSearchBot.Core {
 
 
         private DiscordContext Context;
+        private Object ContextMutex = new();
         protected List<Module> Modules = new ();
 
         [Flags]
@@ -49,15 +51,10 @@ namespace WordSearchBot.Core {
             mod.RegisterEvents(GetContext());
         }
 
-        protected DiscordContext GetContext() {
-            if (Context != null)
+        public DiscordContext GetContext() {
+            lock (ContextMutex) {
                 return Context;
-
-            return Context = new DiscordContext {
-                Client = client,
-                MessageListener = new EventListener<IUserMessage>(),
-                Guild = client.GetGuild(GUILD_ID)
-            };
+            }
         }
 
         public async Task Log(LogLevel level, string message, string author = null) {
@@ -104,6 +101,15 @@ namespace WordSearchBot.Core {
             await client.StartAsync();
 
             client.Ready += () => {
+
+                lock (ContextMutex) {
+                    Context = new DiscordContext {
+                        Client = client,
+                        MessageListener = new EventListener<IUserMessage>(),
+                        Guild = client.GetGuild(GUILD_ID)
+                    };
+                }
+
                 client.MessageReceived += GetContext().MessageListener.ToCastedFunc<SocketMessage>();
                 AddModule<EmojiModule>();
 

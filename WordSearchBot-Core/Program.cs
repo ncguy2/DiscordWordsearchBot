@@ -1,31 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using Discord;
-using Discord.Commands;
-using Discord.Rest;
-using Discord.WebSocket;
+﻿using System.Threading.Tasks;
 using LiteDB;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using WordSearchBot.Core.Model;
+using WordSearchBot.Core.Web;
 
 namespace WordSearchBot.Core {
-    class Program {
+    internal class Program {
+        private static WebInterface webInterface;
+
         public static void PrepMappers() {
             BsonMapper.Global.IncludeFields = true;
             Suggestion.Register(BsonMapper.Global);
         }
 
-        static void Main(string[] args) {
+        private static void Main(string[] args) {
             PrepMappers();
-            new Program().MainAsync().GetAwaiter().GetResult();
+
+            Core core = new();
+
+            webInterface = new WebInterface(core);
+            webInterface.Initialise();
+
+            new Program().MainAsync(core).GetAwaiter().GetResult();
         }
 
-        public async Task MainAsync() {
-            Core core = new();
+        public async Task MainAsync(Core core) {
             await core.Initialise();
             await Task.Delay(-1);
         }

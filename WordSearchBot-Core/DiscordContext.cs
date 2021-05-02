@@ -10,15 +10,15 @@ namespace WordSearchBot.Core {
 
         protected Dictionary<string, SocketChannel> ChannelCache = new ();
 
-        public SocketChannel GetChannelByName(string name) {
+        public T GetChannelByName<T>(string name) where T : SocketChannel {
             if (ChannelCache.ContainsKey(name))
-                return ChannelCache[name];
+                return ChannelCache[name] as T;
 
             foreach (SocketGuildChannel socketGuildChannel in Guild.Channels) {
                 if (socketGuildChannel.Name != name)
                     continue;
                 ChannelCache.Add(name, socketGuildChannel);
-                return socketGuildChannel;
+                return socketGuildChannel as T;
             }
 
             return null;

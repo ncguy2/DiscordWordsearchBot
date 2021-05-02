@@ -2,9 +2,12 @@ using System;
 using Discord;
 using Discord.WebSocket;
 using LiteDB;
+using Newtonsoft.Json;
+using WordSearchBot.Core.Utils;
+using WordSearchBot.Core.Utils.Json;
 
 namespace WordSearchBot.Core.Model {
-    public class Suggestion {
+    public class Suggestion : IJsonable {
         public Suggestion() {
             SuggestionId = ObjectId.NewObjectId();
             InternalStatus = (int) VoteStatus.Pending;
@@ -12,6 +15,7 @@ namespace WordSearchBot.Core.Model {
 
         /// Primary Key
         [BsonId]
+        [JsonConverter(typeof(ObjectIdSerializer))]
         public ObjectId SuggestionId;
 
         /// The originating message Id
