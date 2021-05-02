@@ -72,7 +72,7 @@ namespace WordSearchBot.Core {
             context.MessageListener
                    .Make()
                    .AddPredicate(Predicates.FilterOnBotMessage())
-                   .AddPredicate(Predicates.FilterOnChannelId(ConfigKeys.TEST_CHANNEL_ID.Get()))
+                   .AddPredicate(Predicates.FilterOnChannelId(ChannelId))
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "add"))
                    .AddTask(SuggestEmoji);
@@ -80,7 +80,7 @@ namespace WordSearchBot.Core {
             context.MessageListener
                    .Make()
                    .AddPredicate(Predicates.FilterOnBotMessage())
-                   .AddPredicate(Predicates.FilterOnChannelId(ConfigKeys.TEST_CHANNEL_ID.Get()))
+                   .AddPredicate(Predicates.FilterOnChannelId(ChannelId))
                    .AddPredicate(Predicates.FilterOnMention(context.Client.CurrentUser))
                    .AddPredicate(Predicates.FilterOnCommandPattern("emoji", "inspect"))
                    .AddTask(InspectEmojiCmd);
