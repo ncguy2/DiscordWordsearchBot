@@ -504,20 +504,14 @@ namespace WordSearchBot.Core {
             Regex formatRx = new(@"[a-zA-Z0-9_]", RegexOptions.Compiled);
 
             string[] segs = message.Split(" ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            List<string> candidates = segs.Where(seg => seg.Length <= 32).Where(seg => formatRx.IsMatch(seg)).ToList();
+            List<string> candidates = segs.Select(StringUtils.GetFileNameFromFilePathOrUrl).Where(seg => seg.Length <= 32).Where(seg => formatRx.IsMatch(seg)).ToList();
 
             if (candidates.Count == 0) {
                 Log(Core.LogLevel.ERROR, "Cannot find suitable candidate for emoji name");
                 return null;
             }
 
-            string candidate = candidates[0];
-            if (candidate.StartsWith("http")) {
-                string[] split = candidate.Split('/');
-                candidate = split[^1];
-                candidate = StringUtils.RemoveExtension(candidate);
-            }
-            return candidate;
+            return candidates[0];
         }
 
         private async Task<bool> AddEmojiFromExistingEmoji(IUserMessage msg) {
