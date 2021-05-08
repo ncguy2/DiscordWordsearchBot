@@ -21,7 +21,7 @@ namespace WordSearchBot.Core.Web.REST.api {
         public DataPayload DoWork(RequestContext context) {
             SocketTextChannel c = context.discord.GetContext().GetChannelByName<SocketTextChannel>("suggestions");
 
-            Expression<Func<Suggestion, bool>> filter;
+            Predicate<Suggestion> filter;
 
             if (context.arguments.ContainsKey("status")) {
                 bool tryParse = Enum.TryParse(context.arguments["status"], out VoteStatus s);

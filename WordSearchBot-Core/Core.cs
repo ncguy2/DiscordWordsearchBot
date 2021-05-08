@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
-using LiteDB;
 using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core {

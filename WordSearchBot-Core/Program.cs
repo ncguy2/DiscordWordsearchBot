@@ -1,7 +1,8 @@
 ﻿using System.Threading.Tasks;
-using LiteDB;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using WordSearchBot.Core.Data;
+using WordSearchBot.Core.Data.Facade;
 using WordSearchBot.Core.Model;
 using WordSearchBot.Core.Web;
 
@@ -10,17 +11,17 @@ namespace WordSearchBot.Core {
         private static WebInterface webInterface;
 
         public static void PrepMappers() {
-            BsonMapper.Global.IncludeFields = true;
-            Suggestion.Register(BsonMapper.Global);
+            // BsonMapper.Global.IncludeFields = true;
+            // Suggestion.Register(BsonMapper.Global);
         }
 
         private static void Main(string[] args) {
-            PrepMappers();
-
+            // PrepMappers();
+            //
             Core core = new();
 
-            webInterface = new WebInterface(core);
-            webInterface.Initialise();
+            // webInterface = new WebInterface(core);
+            // webInterface.Initialise();
 
             new Program().MainAsync(core).GetAwaiter().GetResult();
         }

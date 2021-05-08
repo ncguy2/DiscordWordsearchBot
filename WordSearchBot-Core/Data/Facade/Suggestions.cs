@@ -1,7 +1,6 @@
 using System;
 using System.Linq.Expressions;
 using Discord;
-using LiteDB;
 using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core.Data.Facade {

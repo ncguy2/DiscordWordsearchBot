@@ -30,12 +30,14 @@ namespace WordSearchBot.Core {
             Name_Not_Alphanumeric = Invalid_Name | 0b0100,
             Insufficient_Slots = 0b1000,
             Unknown_Error = 0b0100_0000,
-            Silent_Error = 0b1000_0000,
+            Silent_Error = 0b1000_0000
         }
 
-        public bool Mask(ValidityStatus value, ValidityStatus mask) {
-            return (value & mask) == mask;
-        }
+        protected readonly ulong ChannelId = ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get();
+        protected readonly int VoteThreshold = ConfigKeys.Emoji.VOTE_THRESHOLD.Get();
+
+        protected MessageList suggestedList;
+        protected Suggestions suggestions;
 
         public ValidityStatus[] ValidityStatusArray = {
             ValidityStatus.File_Size_Too_Big,
@@ -44,6 +46,10 @@ namespace WordSearchBot.Core {
             ValidityStatus.Name_Not_Alphanumeric,
             ValidityStatus.Insufficient_Slots
         };
+
+        public bool Mask(ValidityStatus value, ValidityStatus mask) {
+            return (value & mask) == mask;
+        }
 
         public int GetEmoteLimit(IGuild guild) {
             return guild.PremiumTier switch {
@@ -54,12 +60,6 @@ namespace WordSearchBot.Core {
                 _ => 50
             };
         }
-
-        protected readonly ulong ChannelId = ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get();
-        protected readonly int VoteThreshold = ConfigKeys.Emoji.VOTE_THRESHOLD.Get();
-
-        protected MessageList suggestedList;
-        protected Suggestions suggestions;
 
         public override string DisplayName() {
             return "Emoji";
@@ -113,7 +113,7 @@ namespace WordSearchBot.Core {
             suggestions = new Suggestions();
 
             context.Client.ReactionAdded += (msg, channel, reaction) => {
-                Task.Run(() => CheckSuggestion(msg, channel, reaction));
+                TaskUtils.Run(() => CheckSuggestion(msg, channel, reaction));
                 return Task.CompletedTask;
             };
         }
@@ -127,9 +127,7 @@ namespace WordSearchBot.Core {
 
             MessageUtils.LongTaskMessage(msg, $"Messages to migrate: {userMessages.Count}", async (_, prog) => {
                 foreach (IUserMessage m in userMessages) {
-                    await prog.ModifyAsync(p => {
-                        p.Content = "Migrating message: " + m.Id;
-                    });
+                    await prog.ModifyAsync(p => { p.Content = "Migrating message: " + m.Id; });
                     if (await MigrateItem(m))
                         toRemove.Add(m);
                 }
@@ -145,14 +143,14 @@ namespace WordSearchBot.Core {
         }
 
         private async Task<bool> MigrateItem(IUserMessage msg) {
-            IAsyncEnumerable<IReadOnlyCollection<IMessage>> msgs = msg.Channel.GetMessagesAsync(msg, Direction.After, 4);
+            IAsyncEnumerable<IReadOnlyCollection<IMessage>>
+                msgs = msg.Channel.GetMessagesAsync(msg, Direction.After, 4);
 
             async Task<IMessage> GetReply(IAsyncEnumerable<IReadOnlyCollection<IMessage>> asyncEnumerable) {
-                await foreach (IReadOnlyCollection<IMessage> m in asyncEnumerable) {
-                    foreach (IMessage message in m) {
-                        if (message.Author.Id != AssignedCore.GetClient().CurrentUser.Id) continue;
-                        return message;
-                    }
+                await foreach (IReadOnlyCollection<IMessage> m in asyncEnumerable)
+                foreach (IMessage message in m) {
+                    if (message.Author.Id != AssignedCore.GetClient().CurrentUser.Id) continue;
+                    return message;
                 }
 
                 return null;
@@ -181,12 +179,8 @@ namespace WordSearchBot.Core {
             if (channel.Id != ChannelId)
                 return;
 
-            bool isLegacy = false;
-
-            if (!suggestedList.Contains(msg.Id) && !suggestions.ContainsAndIs(msg.Id, x => x.Status == VoteStatus.Pending))
+            if (!suggestions.ContainsAndIs(msg.Id, x => x.Status == VoteStatus.Pending))
                 return;
-
-            isLegacy = suggestedList.Contains(msg.Id);
 
             IUserMessage message = await msg.GetOrDownloadAsync();
 
@@ -206,13 +200,9 @@ namespace WordSearchBot.Core {
             }
 
             if (userCount >= VoteThreshold) {
-                if(isLegacy)
-                    suggestedList.Remove(message);
-                else {
-                    Suggestion suggestion = suggestions.GetFromMessageId(msg.Id);
-                    suggestion.Status = VoteStatus.Passed;
-                    suggestions.Update(suggestion);
-                }
+                Suggestion suggestion = suggestions.GetFromMessageId(msg.Id);
+                suggestion.Status = VoteStatus.Passed;
+                suggestions.Update(suggestion);
                 await AddEmoji(message);
             }
         }
@@ -232,7 +222,7 @@ namespace WordSearchBot.Core {
                 reply += GetErrorMessages(validityStatus);
             }
 
-                // reply += "Emoji validity:\n";
+            // reply += "Emoji validity:\n";
             // reply += "Valid: " + ((validityStatus == 0) ? "True" : "False") + "\n";
             // reply += "Invalid: " + ((validityStatus > 0) ? "True" : "False") + "\n";
             // foreach (ValidityStatus s in ValidityStatusArray) {
@@ -266,7 +256,7 @@ namespace WordSearchBot.Core {
 
             // TODO add support for checking the name
             // if(!new Regex("[a-zA-Z0-9_]").IsMatch())
-                // nameFlags |= ValidityStatus.Name_Not_Alphanumeric;
+            // nameFlags |= ValidityStatus.Name_Not_Alphanumeric;
 
             if (guild.Emotes.Count == emoteLimit)
                 flags |= ValidityStatus.Insufficient_Slots;
@@ -302,13 +292,15 @@ namespace WordSearchBot.Core {
 
             if (Mask(validity, ValidityStatus.File_Size_Too_Big))
                 replyMsg += "\n  - The file is too big, it must be below 256KB.";
-            if(Mask(validity, ValidityStatus.Name_Too_Short))
+            if (Mask(validity, ValidityStatus.Name_Too_Short))
                 replyMsg += "\n  - The name given or inferred is too short, it must be at least 2 characters long";
-            if(Mask(validity, ValidityStatus.Name_Not_Alphanumeric))
-                replyMsg += "\n  - The name given or inferred has invalid characters, it can only contain alphanumeric characters and underscores";
-            if(Mask(validity, ValidityStatus.Insufficient_Slots))
-                replyMsg += "\n  - There aren't enough slots left on the server, please ask an admin to look into clearing some out.";
-            if(Mask(validity, ValidityStatus.Unknown_Error))
+            if (Mask(validity, ValidityStatus.Name_Not_Alphanumeric))
+                replyMsg +=
+                    "\n  - The name given or inferred has invalid characters, it can only contain alphanumeric characters and underscores";
+            if (Mask(validity, ValidityStatus.Insufficient_Slots))
+                replyMsg +=
+                    "\n  - There aren't enough slots left on the server, please ask an admin to look into clearing some out.";
+            if (Mask(validity, ValidityStatus.Unknown_Error))
                 replyMsg += "\n  - Unknown error, no idea what broke here ¯\\_(ツ)_/¯";
 
             return replyMsg;
@@ -339,7 +331,6 @@ namespace WordSearchBot.Core {
             replyMsg += GetErrorMessages(validity);
 
             await msg.ReplyAsync(replyMsg);
-
         }
 
         private Task ListSuggestions(IUserMessage msg) {
@@ -356,9 +347,7 @@ namespace WordSearchBot.Core {
 
                 eb.WithTitle("Outstanding suggestions");
 
-                await prog.ModifyAsync(p => {
-                    p.Content = "Grouping suggestions...";
-                });
+                await prog.ModifyAsync(p => { p.Content = "Grouping suggestions..."; });
 
                 foreach (IUserMessage m in msgs) {
                     if (m == null)
@@ -378,9 +367,7 @@ namespace WordSearchBot.Core {
                     groupedMessages[wrapper].Add(sug.GetMessage(msg.Channel));
                 }
 
-                await prog.ModifyAsync(p => {
-                    p.Content = "Building embed...";
-                });
+                await prog.ModifyAsync(p => { p.Content = "Building embed..."; });
 
                 List<EmbedFieldBuilder> fields = new();
                 foreach (KeyValuePair<IUserWrapper, List<IUserMessage>> p in groupedMessages) {
@@ -406,9 +393,7 @@ namespace WordSearchBot.Core {
         }
 
         public static RequestType DetermineRequestType(IUserMessage msg) {
-            return DetermineRequestType(msg, (level, s) => {
-                Console.WriteLine($"[{level}] {s}");
-            });
+            return DetermineRequestType(msg, (level, s) => { Console.WriteLine($"[{level}] {s}"); });
         }
 
         public static RequestType DetermineRequestType(IUserMessage msg, Action<Core.LogLevel, string> Log) {
@@ -528,7 +513,8 @@ namespace WordSearchBot.Core {
             Regex formatRx = new(@"[a-zA-Z0-9_]", RegexOptions.Compiled);
 
             string[] segs = message.Split(" ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            List<string> candidates = segs.Select(StringUtils.GetFileNameFromFilePathOrUrl).Where(seg => seg.Length <= 32).Where(seg => formatRx.IsMatch(seg)).ToList();
+            List<string> candidates = segs.Select(StringUtils.GetFileNameFromFilePathOrUrl)
+                                          .Where(seg => seg.Length <= 32).Where(seg => formatRx.IsMatch(seg)).ToList();
 
             if (candidates.Count == 0) {
                 Log(Core.LogLevel.ERROR, "Cannot find suitable candidate for emoji name");
@@ -616,5 +602,4 @@ namespace WordSearchBot.Core {
             return Id.GetHashCode();
         }
     }
-
 }
