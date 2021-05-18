@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using WordSearchBot.Core.Data;
 using WordSearchBot.Core.Data.Facade;
 using WordSearchBot.Core.Model;
 using WordSearchBot.Core.Utils;
@@ -23,14 +24,13 @@ namespace WordSearchBot.Core {
 
         [Flags]
         public enum ValidityStatus {
-            Valid = 0,
-            File_Size_Too_Big = 0b0001,
-            Invalid_Name = 0b0010,
-            Name_Too_Short = Invalid_Name,
-            Name_Not_Alphanumeric = Invalid_Name | 0b0100,
-            Insufficient_Slots = 0b1000,
-            Unknown_Error = 0b0100_0000,
-            Silent_Error = 0b1000_0000
+            Valid,
+            File_Size_Too_Big,
+            Name_Too_Short,
+            Name_Not_Alphanumeric,
+            Insufficient_Slots,
+            Unknown_Error,
+            Silent_Error
         }
 
         protected readonly ulong ChannelId = ConfigKeys.Emoji.SUGGESTION_CHANNEL_ID.Get();
@@ -41,7 +41,6 @@ namespace WordSearchBot.Core {
 
         public ValidityStatus[] ValidityStatusArray = {
             ValidityStatus.File_Size_Too_Big,
-            ValidityStatus.Invalid_Name,
             ValidityStatus.Name_Too_Short,
             ValidityStatus.Name_Not_Alphanumeric,
             ValidityStatus.Insufficient_Slots
@@ -184,6 +183,8 @@ namespace WordSearchBot.Core {
 
             IUserMessage message = await msg.GetOrDownloadAsync();
 
+            IntegrityCheckForMessage(message);
+
             IReadOnlyDictionary<IEmote, ReactionMetadata> readOnlyDictionary = message.Reactions;
             List<ulong> seenUserIds = new();
             int userCount = 0;
@@ -205,6 +206,27 @@ namespace WordSearchBot.Core {
                 suggestions.Update(suggestion);
                 await AddEmoji(message);
             }
+        }
+
+        private async Task IntegrityCheckForMessage(IUserMessage msg) {
+            Suggestion[] arr = Storage.Get<Suggestion>(x => x.Status == VoteStatus.Pending && x.MessageId == msg.Id).ToArray();
+            int amt = arr.Length;
+            if (amt <= 1)
+                return;
+
+            msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "confused").asEmote());
+            // Leave the first suggestion as-is, mark the rest as Erroneous
+            for (int i = 1; i < arr.Length; i++) {
+                arr[i].Status = VoteStatus.Erroneous;
+                arr[i].Update();
+                MarkMessageAsErroneous(arr[i].GetReply(msg.Channel));
+            }
+        }
+
+        private async Task MarkMessageAsErroneous(IUserMessage replyMsg) {
+            await replyMsg.ModifyAsync(x => {
+                x.Content = "Duplicate suggestion, cleaning up...";
+            });
         }
 
         private async Task InspectEmojiCmd(IUserMessage msg) {
@@ -254,9 +276,8 @@ namespace WordSearchBot.Core {
             if (key.Length < 2)
                 flags |= ValidityStatus.Name_Too_Short;
 
-            // TODO add support for checking the name
-            // if(!new Regex("[a-zA-Z0-9_]").IsMatch())
-            // nameFlags |= ValidityStatus.Name_Not_Alphanumeric;
+            if(new Regex("[^a-zA-Z0-9_]").IsMatch(key))
+                flags |= ValidityStatus.Name_Not_Alphanumeric;
 
             if (guild.Emotes.Count == emoteLimit)
                 flags |= ValidityStatus.Insufficient_Slots;
@@ -307,6 +328,11 @@ namespace WordSearchBot.Core {
         }
 
         private async Task SuggestEmoji(IUserMessage msg) {
+            if (IsMessageAlreadyHandled(msg)) {
+                msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "confused").asEmote());
+                return;
+            }
+
             RequestType requestType = DetermineRequestType(msg, Log);
             if (requestType == RequestType.None)
                 return;
@@ -315,7 +341,7 @@ namespace WordSearchBot.Core {
 
             if (validity == ValidityStatus.Valid) {
                 Suggestion suggestion = suggestions.Create(msg);
-                await msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
+                msg.AddReactionAsync(EmojiHelper.getEmote(AssignedCore.GetClient(), "thumbsup").asEmote());
 
                 IUserMessage reply = await msg.ReplyAsync(
                     $"Emoji successfully submitted for suggestion. Please vote with reactions, a minimum of {VoteThreshold + 1} distinct votes are required",
@@ -330,7 +356,11 @@ namespace WordSearchBot.Core {
 
             replyMsg += GetErrorMessages(validity);
 
-            await msg.ReplyAsync(replyMsg);
+            msg.ReplyAsync(replyMsg);
+        }
+
+        private bool IsMessageAlreadyHandled(IUserMessage msg) {
+            return suggestions.Contains(msg.Id);
         }
 
         private Task ListSuggestions(IUserMessage msg) {
@@ -433,6 +463,16 @@ namespace WordSearchBot.Core {
         }
 
         private async Task AddEmoji(IUserMessage msg) {
+
+            ValidityStatus validity = await InspectEmoji(msg);
+
+            if (validity != ValidityStatus.Valid) {
+                string replyMsg = "Some issues were discovered with this suggestion.";
+                replyMsg += GetErrorMessages(validity);
+                msg.ReplyAsync(replyMsg);
+                return;
+            }
+
             RequestType type = DetermineRequestType(msg, Log);
             Func<IUserMessage, Task<bool>> task = GetTaskFromType(type);
 

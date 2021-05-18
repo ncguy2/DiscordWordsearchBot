@@ -14,14 +14,18 @@ namespace WordSearchBot.Core.Web {
         protected Thread thread;
         protected Endpoints endpoints;
         public bool Active;
+        private int PortOverride;
 
-        public WebListener(Core discord, Endpoints endpoints) {
+        public WebListener(Core discord, Endpoints endpoints, int port = -1) {
             this.discord = discord;
             this.endpoints = endpoints;
+            this.PortOverride = port;
         }
 
         public void Start() {
-            int port = ConfigKeys.Web.PORT.Get();
+            int port = PortOverride;
+            if (port <= -1)
+                port = ConfigKeys.Web.PORT.Get();
             httpListener = new HttpListener();
             // httpListener.Prefixes.Add($"http://nick-aws.ddns.net:{port}/");
             // httpListener.Prefixes.Add($"http://ec2-18-133-161-163.eu-west-2.compute.amazonaws.com:{port}/");

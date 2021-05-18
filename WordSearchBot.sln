@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordSearchBot-Core", "WordSearchBot-Core\WordSearchBot-Core.csproj", "{D3626FC0-6A52-48A7-ACA3-C134BA14DC6F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{4B9958D1-46B2-41A8-A915-E82C941C27C3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{D3626FC0-6A52-48A7-ACA3-C134BA14DC6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D3626FC0-6A52-48A7-ACA3-C134BA14DC6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D3626FC0-6A52-48A7-ACA3-C134BA14DC6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B9958D1-46B2-41A8-A915-E82C941C27C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B9958D1-46B2-41A8-A915-E82C941C27C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B9958D1-46B2-41A8-A915-E82C941C27C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B9958D1-46B2-41A8-A915-E82C941C27C3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

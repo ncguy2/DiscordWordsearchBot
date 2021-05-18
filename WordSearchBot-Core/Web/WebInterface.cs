@@ -6,9 +6,9 @@ namespace WordSearchBot.Core.Web {
         protected Endpoints endpoints;
         protected WebListener listener;
 
-        public WebInterface(Core core) {
+        public WebInterface(Core core, int port = -1) {
             endpoints = new Endpoints();
-            listener = new WebListener(core, endpoints);
+            listener = new WebListener(core, endpoints, port);
         }
 
         public void Initialise() {

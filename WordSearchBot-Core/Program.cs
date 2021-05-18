@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Net;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using WordSearchBot.Core.Data;
@@ -20,8 +22,17 @@ namespace WordSearchBot.Core {
             //
             Core core = new();
 
-            // webInterface = new WebInterface(core);
-            // webInterface.Initialise();
+            // try {
+            //     webInterface = new WebInterface(core);
+            //     webInterface.Initialise();
+            // } catch (HttpListenerException hle) {
+            //     Console.WriteLine(hle.ToString());
+            //     Console.WriteLine("Unable to bind to requested port, moving web interface to port 8080");
+            //     webInterface = new WebInterface(core, port: 8080);
+            //     webInterface.Initialise();
+            // } catch (Exception e) {
+            //     Console.WriteLine(e.ToString());
+            // }
 
             new Program().MainAsync(core).GetAwaiter().GetResult();
         }

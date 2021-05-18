@@ -3,6 +3,7 @@ using System.Data.SQLite;
 using Discord;
 using Discord.WebSocket;
 using Newtonsoft.Json;
+using WordSearchBot.Core.Data.ORM;
 using WordSearchBot.Core.Utils;
 
 namespace WordSearchBot.Core.Model {
@@ -13,14 +14,18 @@ namespace WordSearchBot.Core.Model {
         }
 
         /// Primary Key
+        [PrimaryKey]
         public long SuggestionId;
 
         /// The originating message Id
+        [Field("messageID")]
         public ulong MessageId;
 
         /// The message Id of the original reply
+        [Field("replyID")]
         public ulong InitialReplyId;
 
+        [Field("status")]
         public int InternalStatus;
 
         public VoteStatus Status {
@@ -45,37 +50,18 @@ namespace WordSearchBot.Core.Model {
             return InitialReply ??= channel.GetMessageAsync(InitialReplyId).Result as IUserMessage;
         }
 
-        // public static void Register(BsonMapper mapper) {
-        //     mapper.RegisterType<VoteStatus>(
-        //         status => (int) status,
-        //         val => (VoteStatus) val.AsInt32
-        //     );
-        //     mapper.Entity<Suggestion>()
-        //           .Field(x => x.MessageId, "message_id")
-        //           .Field(x => x.InitialReplyId, "reply_id")
-        //           .Field(x => x.InternalStatus, "status");
-        // }
-
         public string[] InsertKeys() {
             return new[] {"messageID", "replyID", "status"};
-        }
-
-        public void InsertArgs(SQLiteCommand cmd) {
-            cmd.Parameters.AddWithValue("@messageID", MessageId);
-            cmd.Parameters.AddWithValue("@replyID", InitialReplyId);
-            cmd.Parameters.AddWithValue("@status", InternalStatus);
         }
 
         public string[] UpdateKeys() {
             return new[] {"status"};
         }
 
-        public void UpdateArgs(SQLiteCommand cmd) {
-            cmd.Parameters.AddWithValue("@status", InternalStatus);
+        private Reflect<ISQLEntity> reflector;
+        public Reflect<ISQLEntity> GetReflector() {
+            return reflector ??= new Reflect<ISQLEntity>(this);
         }
 
-        public long GetId() {
-            return SuggestionId;
-        }
     }
 }

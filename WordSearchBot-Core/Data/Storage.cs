@@ -165,7 +165,7 @@ namespace WordSearchBot.Core.Data {
             string vals = string.Join(",", a.Select(x => $"@{x}"));
 
             cmd.CommandText = $"INSERT INTO {typeof(T).Name}({keys}) VALUES({vals});";
-            obj.InsertArgs(cmd);
+            obj.Args(cmd, obj.InsertKeys());
             cmd.Prepare();
             return cmd.ExecuteNonQuery() > 0;
         }
@@ -182,18 +182,14 @@ namespace WordSearchBot.Core.Data {
 
             cmd.CommandText = $"UPDATE {typeof(T).Name} SET {setters} WHERE id=@id;";
             cmd.Parameters.AddWithValue("@id", obj.GetId());
-            obj.UpdateArgs(cmd);
+            obj.Args(cmd, obj.UpdateKeys());
             cmd.Prepare();
             return cmd.ExecuteNonQuery() > 0;
         }
 
-        public static void TryInsertOrUpdate<T>(T obj) where T : ISQLEntity {
-            if (obj.IsStored())
-                Update(obj);
-            else
-                Insert(obj);
+        public static bool TryInsertOrUpdate<T>(T obj) where T : ISQLEntity {
+            return obj.IsStored() ? Update(obj) : Insert(obj);
         }
-
 
         public static class Utils {
             public static Expression<Func<T, bool>> ConvertPredicate<T>(Predicate<T> predicate) {
