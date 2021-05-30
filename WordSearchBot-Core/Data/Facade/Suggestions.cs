@@ -7,7 +7,11 @@ namespace WordSearchBot.Core.Data.Facade {
     public class Suggestions : Facade<Suggestion> {
 
         public Suggestion GetFromMessageId(ulong msgId) {
-            return Storage.GetFirst<Suggestion>(x => x.MessageId == msgId);
+            try {
+                return Storage.GetFirst<Suggestion>(x => x.MessageId == msgId);
+            }catch(Exception e) {
+                return null;
+            }
         }
 
         public bool Contains(ulong msgId) {
