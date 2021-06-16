@@ -365,10 +365,9 @@ namespace WordSearchBot.Core {
 
         private Task ListSuggestions(IUserMessage msg) {
             MessageUtils.LongTaskMessage(msg, "Fetching outstanding suggestions", async (_, prog) => {
-                List<IUserMessage> msgs = suggestedList.AsList();
                 List<Suggestion> sugs = suggestions.Get(s => s.InternalStatus == (byte) VoteStatus.Pending).ToList();
 
-                if (msgs.Count == 0 && sugs.Count == 0)
+                if (sugs.Count == 0)
                     return new LongTaskMessageReturn("No outstanding suggestions");
 
                 EmbedBuilder eb = new();
@@ -378,16 +377,6 @@ namespace WordSearchBot.Core {
                 eb.WithTitle("Outstanding suggestions");
 
                 await prog.ModifyAsync(p => { p.Content = "Grouping suggestions..."; });
-
-                foreach (IUserMessage m in msgs) {
-                    if (m == null)
-                        continue;
-                    IUserWrapper wrapper = new(m.Author);
-                    if (!groupedMessages.ContainsKey(wrapper))
-                        groupedMessages.Add(wrapper, new List<IUserMessage>());
-
-                    groupedMessages[wrapper].Add(m);
-                }
 
                 foreach (Suggestion sug in sugs) {
                     IUserWrapper wrapper = new(sug.GetMessage(msg.Channel).Author);
