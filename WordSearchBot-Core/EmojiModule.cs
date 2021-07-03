@@ -46,7 +46,7 @@ namespace WordSearchBot.Core {
             ValidityStatus.Insufficient_Slots
         };
 
-        public bool Mask(ValidityStatus value, ValidityStatus mask) {
+        public static bool Mask(ValidityStatus value, ValidityStatus mask) {
             return (value & mask) == mask;
         }
 
@@ -308,7 +308,7 @@ namespace WordSearchBot.Core {
             return flags;
         }
 
-        private string GetErrorMessages(ValidityStatus validity) {
+        public static string GetErrorMessages(ValidityStatus validity) {
             string replyMsg = "";
 
             if (Mask(validity, ValidityStatus.File_Size_Too_Big))
@@ -604,7 +604,7 @@ namespace WordSearchBot.Core {
             if (task == null) await Log(Core.LogLevel.ERROR, $"Failed to add emoji with key {key}");
         }
 
-        private static string GetFileExt(string file) {
+        public static string GetFileExt(string file) {
             int lastIndexOf = file.LastIndexOf(".");
             return lastIndexOf <= 0 ? ".unknown" : file.Substring(lastIndexOf + 1);
         }
