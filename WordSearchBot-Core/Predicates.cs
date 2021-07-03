@@ -25,6 +25,10 @@ namespace WordSearchBot.Core {
                                        0] == cmd;
         }
 
+        public static Func<IUserMessage, bool> FilterOnCommandPattern(string cmd) {
+            return FilterOnCommandPattern(cmd.Split(" "));
+        }
+
         public static Func<IUserMessage, bool> FilterOnCommandPattern(params string[] cmds) {
             return t => {
                 string[] words = StringUtils.RemoveCrap(t.Content)
