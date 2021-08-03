@@ -82,7 +82,7 @@ namespace WordSearchBot.Core.Modules {
                     }
 
                     RestUserMessage newMsg = await channel.SendFileAsync(info.FullName, text: content, embed: eb.Build(), isSpoiler: true);
-                    await SendPersonalMessageAboutSpoiler(msg, msg.GetJumpUrl(), channel, isFile: true);
+                    await SendPersonalMessageAboutSpoiler(msg, newMsg.GetJumpUrl(), channel, isFile: true);
                     await DeleteMessage(msg);
                 });
 
@@ -91,7 +91,7 @@ namespace WordSearchBot.Core.Modules {
 
             RestUserMessage newMsg = await channel.SendMessageAsync(embed: eb.Build());
 
-            await SendPersonalMessageAboutSpoiler(msg, msg.GetJumpUrl(), channel);
+            await SendPersonalMessageAboutSpoiler(msg, newMsg.GetJumpUrl(), channel);
             await DeleteMessage(msg);
         }
 
