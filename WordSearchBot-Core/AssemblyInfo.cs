@@ -1,3 +1,3 @@
-using System.Reflection;
+using WordSearchBot.Core.System;
 
-[assembly: AssemblyInformationalVersion("db66f18f95a096bbc6d3f12cd201279046088cec")]
+[assembly: GitRevision("2523e8a17453d5a1d3619afe6051d1130c0d7558")]
