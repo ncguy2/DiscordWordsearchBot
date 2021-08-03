@@ -24,14 +24,15 @@ namespace WordSearchBot.Core.Model {
             object value = idField.GetValue(entity);
             if (value == null)
                 return -1;
-            return (long) value;
+            return (long)value;
         }
 
         public static string GetValueAsString(this ISQLEntity entity, string label) {
             FieldInfo[] fields = entity.GetReflector().GetFieldsWithAttribute<FieldAttribute>();
             FieldInfo field = fields
-                                  .Select(x => new Tuple<FieldInfo, FieldAttribute>(x, CustomAttributeExtensions.GetCustomAttribute<FieldAttribute>((MemberInfo) x)))
-                                  .First(t => t.Item2.GetName(t.Item1) == label).Item1;
+                              .Select(x => new Tuple<FieldInfo, FieldAttribute>(
+                                          x, x.GetCustomAttribute<FieldAttribute>()))
+                              .First(t => t.Item2.GetName(t.Item1) == label).Item1;
             return field.GetValue(entity)?.ToString();
         }
 
@@ -51,6 +52,5 @@ namespace WordSearchBot.Core.Model {
         public static bool TryInsertOrUpdate<T>(this T entity) where T : ISQLEntity {
             return Storage.TryInsertOrUpdate(entity);
         }
-
     }
 }

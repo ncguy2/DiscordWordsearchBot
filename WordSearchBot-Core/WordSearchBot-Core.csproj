@@ -7,18 +7,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Discord.Net" Version="2.4.0" />
-      <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-      <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.7" />
+        <PackageReference Include="Discord.Net" Version="2.4.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
+        <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.7"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Utils\Emoji.json" />
-      <EmbeddedResource Include="Utils\Emoji.json" />
+        <None Remove="Utils\Emoji.json"/>
+        <EmbeddedResource Include="Utils\Emoji.json"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Utils\Json" />
+        <Folder Include="Utils\Json"/>
     </ItemGroup>
 
 </Project>

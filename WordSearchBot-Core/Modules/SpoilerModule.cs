@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,9 +15,11 @@ namespace WordSearchBot.Core.Modules {
         const long SPOILER_ID = 872099412795588619;
 
         private static readonly string[] Sublines = {
-            "",
             "Please refrain from posting spoilers in the future",
-            "Please refrain from posting spoilers in the future, especially if you're a fan of your kneecaps"
+            "Please refrain from posting spoilers in the future",
+            "Please refrain from posting spoilers in the future",
+            "Please refrain from posting spoilers in the future, especially if you're a fan of your kneecaps",
+            "If you like your toes, don't post any more spoilers"
         };
 
         public override string DisplayName() {
@@ -53,7 +56,7 @@ namespace WordSearchBot.Core.Modules {
         private async Task MarkMessageAsSpoiler(IUserMessage msg, ISocketMessageChannel channel) {
 
             EmbedBuilder eb = new();
-            eb.WithAuthor(msg.Author).WithDescription(msg.Content);
+            eb.WithAuthor(msg.Author).WithDescription($"Spoilers: ||{msg.Content}||");
 
             string url = null;
 
@@ -63,10 +66,24 @@ namespace WordSearchBot.Core.Modules {
                 url = attachment.Url;
             }
 
+            List<string> urls = LinkFinder.GetUrlsFromString(msg.Content);
+            if (url == null && urls.Count > 0)
+                url = urls[0];
+
             if (url != null) {
                 DownloadHelper.DownloadTempFileAsync(url, async info => {
-                    await channel.SendFileAsync(info.FullName, embed: eb.Build(), isSpoiler: true);
-                    await msg.DeleteAsync();
+
+                    string content = null;
+                    if(urls.Count > 0) {
+                        int startIdx = url == urls[0] ? 1 : 0;
+                        for (int i = startIdx; i < urls.Count; i++) {
+                            content += $"||{url}||\n";
+                        }
+                    }
+
+                    RestUserMessage newMsg = await channel.SendFileAsync(info.FullName, text: content, embed: eb.Build(), isSpoiler: true);
+                    await SendPersonalMessageAboutSpoiler(msg, msg.GetJumpUrl(), channel, isFile: true);
+                    await DeleteMessage(msg);
                 });
 
                 return;
@@ -74,14 +91,33 @@ namespace WordSearchBot.Core.Modules {
 
             RestUserMessage newMsg = await channel.SendMessageAsync(embed: eb.Build());
 
+            await SendPersonalMessageAboutSpoiler(msg, msg.GetJumpUrl(), channel);
+            await DeleteMessage(msg);
+        }
 
-            eb = new EmbedBuilder();
-            eb.WithUrl(newMsg.GetJumpUrl());
+        private async Task SendPersonalMessageAboutSpoiler(IUserMessage msg, string jumpUrl, IChannel channel, bool isFile = false) {
+            EmbedBuilder eb = EmbedUtils.ExternalEmbed();
+            eb.WithTitle("No Spoilers!").WithUrl(jumpUrl);
             eb.WithColor(149, 13, 149);
-            eb.WithDescription("Someone deemed a message of yours to contain a spoiler, so I've hidden it :)\n" +
-                               CollectionUtils.SelectRandom(Sublines));
 
+            string desc = isFile ? "You uploaded a file that someone thought contains a spoiler, so I've reposted it appropriately" : "Someone decided that a message of yours to contain a spoiler, so I've hidden it";
+
+            eb.WithDescription($"{desc}\n{CollectionUtils.SelectRandom(Sublines)}");
+
+            eb.AddField("Server", (channel as ITextChannel)?.Guild.Name, inline: true);
+            eb.AddField("Channel", channel.Name, inline: true);
+            string content = msg.Content;
+            if (string.IsNullOrWhiteSpace(content))
+                content = "[No Content]";
+            eb.AddField("The message in question", content, inline: false);
+
+            await msg.Author.SendMessageAsync(embed: eb.Build());
+        }
+
+        private async Task DeleteMessage(IUserMessage msg) {
             await msg.DeleteAsync();
+            // await msg.ModifySuppressionAsync(true);
+            // await msg.AddReactionAsync(EmojiHelper.getEmoji("wastebasket").asEmote());
         }
 
     }

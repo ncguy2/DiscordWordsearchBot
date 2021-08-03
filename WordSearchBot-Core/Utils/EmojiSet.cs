@@ -14,7 +14,7 @@ namespace WordSearchBot.Core.Utils {
             if (emojis != null)
                 return;
 
-            Assembly a = Assembly.GetEntryAssembly();
+            Assembly a = Assembly.GetAssembly(typeof(EmojiSet));
             using Stream stream = a?.GetManifestResourceStream("WordSearchBot_Core.Utils.Emoji.json");
             using StreamReader reader = new (stream!);
 

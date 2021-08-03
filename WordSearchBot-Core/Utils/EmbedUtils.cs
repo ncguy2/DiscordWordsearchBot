@@ -1,16 +1,19 @@
 using System.Reflection;
 using Discord;
+using WordSearchBot.Core.System;
 
 namespace WordSearchBot.Core.Utils {
-    public static class EmbedFooter {
-
-        public static void AddFooter(EmbedBuilder eb) {
-            string informationalVersion = ((AssemblyInformationalVersionAttribute)Assembly
-                    .GetAssembly(typeof(EmbedFooter))
-                    .GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)[0])
-                .InformationalVersion;
-            eb.WithFooter($"EmbedBuilder, version {informationalVersion}");
+    public static class EmbedUtils {
+        public static EmbedBuilder ExternalEmbed() {
+            return AddFooter(new EmbedBuilder());
         }
 
+        public static EmbedBuilder AddFooter(EmbedBuilder eb) {
+            string informationalVersion = ((GitRevisionAttribute)Assembly
+                                                                 .GetAssembly(typeof(EmbedUtils))
+                                                                 ?.GetCustomAttributes(
+                                                                     typeof(GitRevisionAttribute), false)[0])?.Hash;
+            return eb.WithFooter($"EmbedBuilder, version {informationalVersion}");
+        }
     }
 }

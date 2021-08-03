@@ -99,6 +99,21 @@ namespace WordSearchBot.Core.Utils {
             return Emote.TryParse(emoteKey, out Emote res) ? res : null;
         }
 
+        public static EmojiItem getEmoji(string emoteKey) {
+            emoteKey = emoteKey.Trim(':');
+
+            if (EmojiSet.getEmoji(emoteKey, out SingleEmoji emoji))
+                return cache(emoteKey, new EmojiItem(emoji));
+
+            if (cache(emoteKey, out EmojiItem e))
+                return e;
+
+            if (Emote.TryParse(emoteKey, out Emote emote))
+                return cache(emoteKey, new EmojiItem(emote));
+
+            return null;
+        }
+
         public static EmojiItem getEmote(DiscordSocketClient client, string emoteKey) {
             emoteKey = emoteKey.Trim(':');
 

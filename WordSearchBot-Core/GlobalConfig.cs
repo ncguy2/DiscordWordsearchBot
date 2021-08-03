@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 
 namespace WordSearchBot.Core {
     public static class GlobalConfig {
@@ -11,7 +10,7 @@ namespace WordSearchBot.Core {
         private static string[] CONFIG_PATHS = {
             "~",
             ".",
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal)
+            Environment.GetFolderPath(Environment.SpecialFolder.Personal)
         };
 
         public static IniFile Ini {

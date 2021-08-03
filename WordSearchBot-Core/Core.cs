@@ -1,27 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
-using WordSearchBot.Core.Model;
 using WordSearchBot.Core.Modules;
 
 namespace WordSearchBot.Core {
     public class Core {
-
-        private DiscordSocketClient client;
-        private readonly string Token = GlobalConfig.GetValue(ConfigKeys.TOKEN).GetString(false, false);
-        public static readonly ulong BOT_TESTING_CHANNEL_ID = ulong.Parse(GlobalConfig.GetValue(ConfigKeys.TEST_CHANNEL_ID).Value);
-        public static readonly ulong BOT_LOG_CHANNEL_ID = ulong.Parse(GlobalConfig.GetValue(ConfigKeys.LOG_CHANNEL_ID).Value);
-        public static readonly ulong GUILD_ID = ConfigKeys.GUILD_ID.Get();
-        public static readonly string CACHE_DIR_ROOT = GlobalConfig.GetValue(ConfigKeys.Cache.CACHE_DIR).GetString(false, false);
-
-
-        private DiscordContext Context;
-        private Object ContextMutex = new();
-        protected List<Module> Modules = new ();
-
         [Flags]
         public enum LogLevel {
             FATAL,
@@ -30,7 +15,16 @@ namespace WordSearchBot.Core {
             DEBUG
         }
 
-        private LogLevel loggingLevel = LogLevel.ERROR | LogLevel.INFO | LogLevel.DEBUG;
+        public static readonly ulong BOT_TESTING_CHANNEL_ID =
+            ulong.Parse(GlobalConfig.GetValue(ConfigKeys.TEST_CHANNEL_ID).Value);
+
+        public static readonly ulong BOT_LOG_CHANNEL_ID =
+            ulong.Parse(GlobalConfig.GetValue(ConfigKeys.LOG_CHANNEL_ID).Value);
+
+        public static readonly ulong GUILD_ID = ConfigKeys.GUILD_ID.Get();
+
+        public static readonly string CACHE_DIR_ROOT =
+            GlobalConfig.GetValue(ConfigKeys.Cache.CACHE_DIR).GetString(false, false);
 
         private readonly Color[] colours = {
             Color.Red,
@@ -39,8 +33,19 @@ namespace WordSearchBot.Core {
             Color.Green
         };
 
+        private readonly string Token = GlobalConfig.GetValue(ConfigKeys.TOKEN).GetString(false, false);
+
+        private DiscordSocketClient client;
+
+
+        private DiscordContext Context;
+        private readonly object ContextMutex = new();
+
+        private LogLevel loggingLevel = LogLevel.ERROR | LogLevel.INFO | LogLevel.DEBUG;
+        protected List<Module> Modules = new();
+
         public T AddModule<T>() where T : Module, new() {
-            T mod = new T();
+            T mod = new();
             AddModule(mod);
             return mod;
         }
@@ -58,7 +63,6 @@ namespace WordSearchBot.Core {
         }
 
         public async Task Log(LogLevel level, string message, string author = null) {
-
             string authorTag = "";
             if (author != null)
                 authorTag = $"[{author}]";
@@ -69,7 +73,7 @@ namespace WordSearchBot.Core {
 
             SocketTextChannel channel = client.GetChannel(BOT_LOG_CHANNEL_ID) as SocketTextChannel;
 
-            EmbedBuilder eb = new() {Color = colours[(int) level], Title = message};
+            EmbedBuilder eb = new() { Color = colours[(int)level], Title = message };
             eb.WithFooter(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss tt"));
             if (author != null)
                 eb.WithAuthor(author);
@@ -81,7 +85,7 @@ namespace WordSearchBot.Core {
             string levelToToggle = msg.Content.Split(" ")[2];
             if (Enum.TryParse(levelToToggle, out LogLevel lvl)) {
                 loggingLevel ^= lvl;
-                string s = ((loggingLevel & lvl) == lvl) ? "Enabled" : "Disabled";
+                string s = (loggingLevel & lvl) == lvl ? "Enabled" : "Disabled";
                 await Log(LogLevel.FATAL, $"{s} log level {lvl}");
                 return;
             }
@@ -101,7 +105,6 @@ namespace WordSearchBot.Core {
             await client.StartAsync();
 
             client.Ready += () => {
-
                 lock (ContextMutex) {
                     Context = new DiscordContext {
                         Client = client,
@@ -116,7 +119,6 @@ namespace WordSearchBot.Core {
 
                 return Task.CompletedTask;
             };
-
         }
 
         private LogLevel MapSeverityToLevel(LogSeverity severity) {

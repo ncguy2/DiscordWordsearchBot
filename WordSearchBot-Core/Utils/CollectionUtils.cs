@@ -6,7 +6,8 @@ namespace WordSearchBot.Core.Utils {
         private static Random random = new Random();
 
         public static T SelectRandom<T>(T[] array) {
-            return array[random.Next(array.Length)];
+            int index = random.Next(array.Length);
+            return array[index];
         }
 
     }

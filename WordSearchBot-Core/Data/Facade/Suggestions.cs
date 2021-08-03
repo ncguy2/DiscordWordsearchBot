@@ -1,15 +1,13 @@
 using System;
-using System.Linq.Expressions;
 using Discord;
 using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core.Data.Facade {
     public class Suggestions : Facade<Suggestion> {
-
         public Suggestion GetFromMessageId(ulong msgId) {
             try {
                 return Storage.GetFirst<Suggestion>(x => x.MessageId == msgId);
-            }catch(Exception e) {
+            } catch (Exception e) {
                 return null;
             }
         }
@@ -24,7 +22,7 @@ namespace WordSearchBot.Core.Data.Facade {
         }
 
         public Suggestion Create(IUserMessage msg) {
-            return new() {MessageId = msg.Id};
+            return new Suggestion { MessageId = msg.Id };
         }
     }
 }

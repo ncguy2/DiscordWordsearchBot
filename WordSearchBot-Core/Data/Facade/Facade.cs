@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using WordSearchBot.Core.Model;
 
 namespace WordSearchBot.Core.Data.Facade {
     public class Facade<T> where T : ISQLEntity {
-
         public bool Update(T obj) {
             return Storage.Update(obj);
         }
@@ -23,12 +21,11 @@ namespace WordSearchBot.Core.Data.Facade {
         }
 
         public IEnumerable<T> Get(Predicate<T> predicate) {
-            return Storage.Get<T>(predicate);
+            return Storage.Get(predicate);
         }
 
         public T Get(string id) {
             return Storage.GetById<T>(long.Parse(id));
         }
-
     }
 }
