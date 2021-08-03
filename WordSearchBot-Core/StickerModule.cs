@@ -107,7 +107,7 @@ namespace WordSearchBot.Core
                     string url = LinkFinder.GetUrlsFromString(msg.Content)[0];
 
                     try {
-                        await DownloadTempFile(url, file => {
+                        DownloadHelper.DownloadTempFile(url, file => {
                             if (file.Length > maxFileSize)
                                 flags |= EmojiModule.ValidityStatus.File_Size_Too_Big;
                         });
@@ -132,21 +132,5 @@ namespace WordSearchBot.Core
             };
         }
         
-        private async Task<string> DownloadFile(string url, string filename) {
-            await Log(Core.LogLevel.DEBUG, $"Downloading file from \"{url}\" to \"{filename}\"");
-            using WebClient client = new();
-            Directory.CreateDirectory(".downloads");
-            string filePath = $".downloads/{filename}.{EmojiModule.GetFileExt(url)}";
-            client.DownloadFile(url, filePath);
-
-            return filePath;
-        }
-        
-        private async Task DownloadTempFile(string url, Action<FileInfo> callback)
-        {
-            string downloadFile = await DownloadFile(url, StringUtils.RandomString(8));
-            callback(new FileInfo(downloadFile));
-            File.Delete(downloadFile);
-        }
     }
 }

@@ -293,7 +293,7 @@ namespace WordSearchBot.Core {
                     string url = LinkFinder.GetUrlsFromString(msg.Content)[0];
 
                     try {
-                        await DownloadTempFile(url, file => {
+                        DownloadHelper.DownloadTempFile(url, file => {
                             if (file.Length > maxFileSize)
                                 flags |= ValidityStatus.File_Size_Too_Big;
                         });
@@ -567,31 +567,8 @@ namespace WordSearchBot.Core {
         }
 
         private async Task AddEmojiFromUrl(IGuild guild, string emoteKey, string url) {
-            string filePath = await DownloadFile(url, emoteKey);
+            string filePath = DownloadHelper.DownloadFile(url, emoteKey);
             await AddEmojiFromFile(guild, emoteKey, filePath);
-        }
-
-        private async Task<string> DownloadFile(string url, string filename) {
-            await Log(Core.LogLevel.DEBUG, $"Downloading file from \"{url}\" to \"{filename}\"");
-            using WebClient client = new();
-            Directory.CreateDirectory(".downloads");
-            string filePath = $".downloads/{filename}.{GetFileExt(url)}";
-            client.DownloadFile(url, filePath);
-
-            return filePath;
-        }
-
-        private async Task DownloadTempFile(string url, Action<FileInfo> callback) {
-            string downloadFile = await DownloadFile(url, StringUtils.RandomString(8));
-            callback(new FileInfo(downloadFile));
-            File.Delete(downloadFile);
-        }
-
-        private async Task<T> DownloadTempFile<T>(string url, Func<FileInfo, T> callback) {
-            string downloadFile = await DownloadFile(url, StringUtils.RandomString(8));
-            T val = callback(new FileInfo(downloadFile));
-            File.Delete(downloadFile);
-            return val;
         }
 
         private async Task AddEmojiFromFile(IGuild guild, string key, string file) {
@@ -604,10 +581,6 @@ namespace WordSearchBot.Core {
             if (task == null) await Log(Core.LogLevel.ERROR, $"Failed to add emoji with key {key}");
         }
 
-        public static string GetFileExt(string file) {
-            int lastIndexOf = file.LastIndexOf(".");
-            return lastIndexOf <= 0 ? ".unknown" : file.Substring(lastIndexOf + 1);
-        }
     }
 
     public struct IUserWrapper {

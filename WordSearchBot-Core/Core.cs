@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
 using WordSearchBot.Core.Model;
+using WordSearchBot.Core.Modules;
 
 namespace WordSearchBot.Core {
     public class Core {
@@ -111,6 +112,7 @@ namespace WordSearchBot.Core {
 
                 client.MessageReceived += GetContext().MessageListener.ToCastedFunc<SocketMessage>();
                 AddModule<EmojiModule>();
+                AddModule<SpoilerModule>();
 
                 return Task.CompletedTask;
             };
