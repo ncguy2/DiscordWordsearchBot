@@ -39,6 +39,8 @@ namespace WordSearchBot.Core {
         protected MessageList suggestedList;
         protected Suggestions suggestions;
 
+        protected List<ulong> messagesBeingHandled = new();
+
         public ValidityStatus[] ValidityStatusArray = {
             ValidityStatus.File_Size_Too_Big,
             ValidityStatus.Name_Too_Short,
@@ -173,6 +175,18 @@ namespace WordSearchBot.Core {
             await SuggestEmoji(arg.ReferencedMessage);
         }
 
+        private bool IsMessageBeingHandled(ulong msgId) {
+            return messagesBeingHandled.Contains(msgId);
+        }
+
+        private void MarkMessageBeingHandled(ulong msgId) {
+            messagesBeingHandled.Add(msgId);
+        }
+
+        private void MarkMessageNoLongerHandled(ulong msgId) {
+            messagesBeingHandled.Remove(msgId);
+        }
+
         private async Task CheckSuggestion(Cacheable<IUserMessage, ulong> msg, ISocketMessageChannel channel,
                                            SocketReaction reaction) {
             if (channel.Id != ChannelId)
@@ -180,6 +194,7 @@ namespace WordSearchBot.Core {
 
             if (!suggestions.ContainsAndIs(msg.Id, x => x.Status == VoteStatus.Pending))
                 return;
+
 
             IUserMessage message = await msg.GetOrDownloadAsync();
 
@@ -201,10 +216,19 @@ namespace WordSearchBot.Core {
             }
 
             if (userCount >= VoteThreshold) {
+                if (IsMessageBeingHandled(msg.Id)) {
+                    await Log(Core.LogLevel.DEBUG, "Message is already being handled");
+                    return;
+                }
+
+                MarkMessageBeingHandled(msg.Id);
+
                 Suggestion suggestion = suggestions.GetFromMessageId(msg.Id);
                 suggestion.Status = VoteStatus.Passed;
                 suggestions.Update(suggestion);
                 await AddEmoji(message);
+
+                MarkMessageNoLongerHandled(msg.Id);
             }
         }
 
