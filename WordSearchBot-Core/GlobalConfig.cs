@@ -84,6 +84,14 @@ namespace WordSearchBot.Core {
 
             return builder(GlobalConfig.GetValue(this).GetString(false, false));
         }
+
+        public static implicit operator T(ConfigKey<T> key) {
+            return key.Get();
+        }
+
+        public override string ToString() {
+            return Get().ToString();
+        }
     }
 
     public static class ConfigKeys {
